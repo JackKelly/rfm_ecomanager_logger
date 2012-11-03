@@ -1,85 +1,67 @@
 from __future__ import print_function
 from __future__ import division
-import json
-import serial
-
-class Sensor(object):
-    """Each Transmitter can have 1 to 3 Sensors."""
-    def __init__(self, name=None, log_chan=None):
-        self.name = name
-        self.log_chan = log_chan
+from nanode import Nanode
+from transmitter import *
 
 
-class Transmitter(object):
-    def __init__(self, sensors={}):
-        self.sensors = sensors
+class ManagerError(Exception):
+    """Simple class for Manager Errors"""
 
 
 class Manager(object):
     def __init__(self, nanode):
         self.nanode = nanode
-        self.txs = {}
+        self.txs  = {}
         self.trxs = {}
         
-        json_file = open("radioIDs.json")
-        self.radio_ids = json.load(json_file)
-        json_file.close()
-    
-    def extract_dict(self, json_data):
-        dict = {}
-        for tx in json_data:
-            if tx.get("sensors"):
-                dict[tx.get("id")] = [None,None,None]
-                for sensor in tx.get("sensors"):
-                    dict[tx.get("id")][sensor.get("s")] = sensor.get("chan")
+        # TODO: if radio_ids exists then open it and load data, tell Nanode
+        #       how many TXs and TRXs there are and then inform Nanode of
+        #       each TX and TRX.
+
+        
+    def run(self):
+        while True:
+            json_line = self.nanode.readjson() 
+            
+            # Handle data from Nanode
+            if json_line.get("pr"): # pair request
+                self._handle_pair_request(json_line.get("pr"))
             else:
-                dict[tx.get("id")] = [tx.get("chan")]
-                
-        return dict
-
-
-class NanodeError(Exception):
-    """Base class for errors from the Nanode."""
-
-
-class Nanode(object):
-    """Used to manage a Nanode running the rfm_edf_ecomanager code."""
+                print(json_line.get("t"), json_line.get("id"), json_line.get("sensors").get("0"))  
     
-    def __init__(self, port="/dev/ttyUSB0"):
-        self.port = port
-        self._open_port()
-        
-    def _open_port(self):
-        self.serial = serial.Serial(self.port, 115200)
-        # Deliberately don't catch exception: if connecting to the 
-        # Serial port fails then we need to terminate.
-        
-    def _send_command(self, cmd, param=None):
-        self.serial.flushInput()
-        self.serial.write(cmd)
-        self._process_response()
-        if param:
-            self.serial.write(str(param) + "\r\n")
-            echo = self.serial.readline()
-            if echo.strip() != str(param):
-                raise NanodeError("Attempted to send command {:s}{:d}, "
-                                  "received incorrect echo: {:s}"
-                                  .format(cmd, param, echo))
-            self._process_response()
-            
-        
-    def _process_response(self):
-        response = self.serial.readline()
-        if response.split()[0] != "ACK":
-            raise NanodeError(response)
-            
+    def _handle_pair_request(self, pr):
+        tx_type = pr["type"]
+        tx_id   = pr["id"]
+        if tx_type=="tx":
+            if tx_id in self.txs.keys():
+                print("Pair request received from a TX we already know")
+            else:
+                self._pair_with(self.txs, "TX", tx_id)
+        else: # tx_type=="trx"
+            if tx_id in self.trxs.keys():
+                print("Pair request received from a TRX we already know")
+                self.nanode.send_command("pw", tx_id)
+                self.nanode.send_command("R", tx_id) # remove
+            else:
+                self._pair_with(self.trxs, "TRX", tx_id)
 
-def send_dict_to_nanode(dict, tx_type):
-    
-    
+    def _pair_with(self, d, name, tx_id):
+        print("Pairing with", name, tx_id)
+        self.nanode.send_command("p", tx_id)
+        json_line = self.nanode.readjson()
+        if json_line.get("pw").get("id") != tx_id:
+            raise ManagerError("Failed to pair with", name, tx_id)
+        else:
+            print("Successfully paired with", name, tx_id)
+        d[tx_id] = Transmitter()
+        # TODO: ask for names of sensors
+
 
 def main():
     print("rfm_ecomanager_logger")
+    nanode = Nanode()
+    manager = Manager(nanode)
+    manager.run()
     
 if __name__ == "__main__":
     main()
