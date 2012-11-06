@@ -9,13 +9,16 @@ class NanodeError(Exception):
 class Nanode(object):
     """Used to manage a Nanode running the rfm_edf_ecomanager code."""
     
-    def __init__(self, port="/dev/ttyUSB0"):
+    def __init__(self, args, port="/dev/ttyUSB0"):
         self.port = port
         self._open_port()
         self.send_command("m") # manual pairing mode
         self.send_command("d") # delete all TXs
         self.send_command("D") # delete all TRXs
-        self.send_command("k") # only print data from known transmitters
+        if args.promiscuous:
+            self.send_command("u") # print data from all valid transmitters
+        else:
+            self.send_command("k") # Only print data from known transmitters
         
     def readjson(self):
         line = self.serial.readline()
