@@ -1,6 +1,5 @@
 from __future__ import print_function
 import abc
-from nanode import Nanode
 from sensor import Sensor                   
 
 
