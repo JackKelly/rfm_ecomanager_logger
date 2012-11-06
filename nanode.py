@@ -12,6 +12,7 @@ class Nanode(object):
     def __init__(self, args, port="/dev/ttyUSB0"):
         self.port = port
         self._open_port()
+        self.send_command("v", 4) # don't show any debug log messages
         self.send_command("m") # manual pairing mode
         self.send_command("d") # delete all TXs
         self.send_command("D") # delete all TRXs
