@@ -18,9 +18,9 @@ class Manager(object):
         self.nanode = nanode
         self.args = args
 
-        # TODO: if radio_ids exists then open it and load data, tell Nanode
-        #       how many TXs and TRXs there are and then inform Nanode of
-        #       each TX and TRX.
+        # if radio_ids exists then open it and load data, tell Nanode
+        # how many TXs and TRXs there are and then inform Nanode of
+        # each TX and TRX.
         try:
             pkl_file = open(Manager.PICKLE_FILE, "rb")
         except:
@@ -28,8 +28,20 @@ class Manager(object):
         else:
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
+            
+            num_txs = 0
+            num_trxs = 0
             for dummy, tx in self.transmitters.iteritems():
                 tx.manager = self
+                if isinstance(tx, Cc_tx):
+                    num_txs += 1
+                else:
+                    num_trxs += 1
+            
+            self.nanode.send_command('s', num_txs)
+            self.nanode.send_command('S', num_trxs)
+            
+            for dummy, tx in self.transmitters.iteritems():
                 tx.add_to_nanode()
 
     def run(self):
