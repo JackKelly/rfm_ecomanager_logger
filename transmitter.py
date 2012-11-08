@@ -31,6 +31,10 @@ class Transmitter(object):
     @abc.abstractmethod
     def reject_pair_request(self, pr):
         pass
+    
+    def unpickle(self):
+        for dummy, sensor in self.sensors.iteritems():
+            sensor.transmitter = self
         
     def add_to_nanode(self):
         self.manager.nanode.send_command(self.ADD_COMMAND, self.id)

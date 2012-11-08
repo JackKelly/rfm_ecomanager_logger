@@ -1,6 +1,7 @@
 from __future__ import print_function
 from transmitter import Cc_tx, Cc_trx
 import pickle
+from nanode import NanodeRestart
 
 class Manager(object):
     """ 
@@ -14,7 +15,6 @@ class Manager(object):
     PICKLE_FILE = "radioIDs.pkl"
     
     def __init__(self, nanode, args):
-        self.transmitters = {}
         self.nanode = nanode
         self.args = args
 
@@ -24,29 +24,34 @@ class Manager(object):
         try:
             pkl_file = open(Manager.PICKLE_FILE, "rb")
         except:
-            pass
+            self.transmitters = {}
         else:
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
-            
-            num_txs = 0
-            num_trxs = 0
+
             for dummy, tx in self.transmitters.iteritems():
-                tx.manager = self
-                if isinstance(tx, Cc_tx):
-                    num_txs += 1
-                else:
-                    num_trxs += 1
+                tx.unpickle()
             
+            self._tell_nanode_about_transmitters()
+
+    def _tell_nanode_about_transmitters(self):
+        self.nanode.send_command("d") # delete all TXs
+        self.nanode.send_command("D") # delete all TRXs        
+        if self.transmitters:
+            num_txs, num_trxs = self._count_transmitters()
             self.nanode.send_command('s', num_txs)
-            self.nanode.send_command('S', num_trxs)
-            
+            self.nanode.send_command('S', num_trxs)       
             for dummy, tx in self.transmitters.iteritems():
                 tx.add_to_nanode()
 
     def run(self):
         while True:
-            json_line = self.nanode.readjson() 
+            try:
+                json_line = self.nanode.readjson()
+            except NanodeRestart:
+                self.nanode.send_init_commands()
+                self._tell_nanode_about_transmitters()
+                 
             tx_id = json_line.get("id")
             
             # Handle data from Nanode
@@ -62,6 +67,17 @@ class Manager(object):
                     self.transmitters[tx_id].update_name(json_line.get("sensors"))
                     self.pickle()
 
+    def _count_transmitters(self):
+        num_txs = 0
+        num_trxs = 0
+        for dummy, tx in self.transmitters.iteritems():
+            tx.manager = self
+            if isinstance(tx, Cc_tx):
+                num_txs += 1
+            else:
+                num_trxs += 1
+                
+        return num_txs, num_trxs
     
     def _handle_pair_request(self, pr):
         tx_id  = pr["id"]
