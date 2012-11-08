@@ -1,6 +1,7 @@
 from __future__ import print_function
 import serial
 import json
+import logging
 
 class NanodeError(Exception):
     """Base class for errors from the Nanode."""
@@ -23,7 +24,7 @@ class Nanode(object):
             self.send_init_commands() # re-send init commands after restart
         
     def send_init_commands(self):
-        print("Sending init commands to Nanode...")
+        logging.debug("Sending init commands to Nanode...")
         self.send_command("v", 4) # don't show any debug log messages
         self.send_command("m") # manual pairing mode
         if self.args.promiscuous:
@@ -43,7 +44,7 @@ class Nanode(object):
         try_again = True
         while try_again:
             line = self.serial.readline()
-            print("Nanode:", line, end="")            
+            logging.debug("NANODE: {}".format(line.strip()))            
             if line.strip() == "EDF IAM Receiver":
                 try_again = True
             elif line.strip() == "Finished init":
@@ -55,13 +56,13 @@ class Nanode(object):
         return line
         
     def _open_port(self):
-        print("Opening port", self.port)
+        logging.debug("Opening port {}".format(self.port))
         self.serial = serial.Serial(self.port, 115200)
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
         
     def send_command(self, cmd, param=None):
-        # print("send_command(cmd=", cmd, ", param=", param, ")")
+        logging.debug("send_command(cmd={}, param={})".format(cmd, param))
         self.serial.flushInput()
         self.serial.write(cmd)
         self._process_response()
@@ -75,6 +76,15 @@ class Nanode(object):
             self._process_response()
                   
     def _process_response(self):
-        response = self._readline()            
-        if response.split()[0] != "ACK":
-            raise NanodeError(response)
+        num_retries = 0
+        while num_retries < 5:
+            num_retries += 1
+            response = self._readline().split()
+            if not response:
+                pass # retry if we get a blank line
+            if response[0] == "ACK":
+                break # success!
+            if response[0][0] == "{":
+                pass # ignore this JSON and read next line            
+            elif response[0] == "NAK":
+                raise NanodeError(response)
