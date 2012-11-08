@@ -1,7 +1,7 @@
 from __future__ import print_function
 import abc
 from sensor import Sensor                   
-from input_with_quit import input_with_quit
+from input_with_cancel import input_with_cancel
 
 class TransmitterError(Exception):
     """For errors from Transmitter objects"""
@@ -38,6 +38,10 @@ class Transmitter(object):
         
     def add_to_nanode(self):
         self.manager.nanode.send_command(self.ADD_COMMAND, self.id)
+        
+    def delete_from_nanode(self):
+        self.manager.nanode.send_command(self.DEL_COMMAND, self.id)
+
     
     def new_reading(self, sensors):
         for sensor, watts in sensors.iteritems():
@@ -68,10 +72,23 @@ class Transmitter(object):
                       .format(sensor_id, sensor.log_chan, sensor.name)
         return string
 
+    def print_names(self):
+        string = ""
+        first = True
+        for dummy, sensor in self.sensors.iteritems():
+            if first:
+                first = False
+            else:
+                string += ", "
+                
+            string += sensor.name
+        return string
+        
 
 class Cc_trx(Transmitter):
     
     ADD_COMMAND = "N"
+    DEL_COMMAND = "R"
     TYPE = "TRX"
     
     def __init__(self, rf_id, manager):
@@ -92,6 +109,7 @@ class Cc_tx(Transmitter):
     
     VALID_SENSOR_IDS = [1,2,3]
     ADD_COMMAND = "n"
+    DEL_COMMAND = "r"
     TYPE = "TX"
 
     def __init__(self, rf_id, manager):
@@ -121,7 +139,7 @@ class Cc_tx(Transmitter):
                   " separated by a comma. Default="
                   , default_sensor_list, " : ", sep="", end="")
             
-            sensor_list_str = input_with_quit();
+            sensor_list_str = input_with_cancel();
     
             if sensor_list_str == "":
                 sensor_list = default_sensor_list

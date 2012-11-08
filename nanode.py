@@ -23,6 +23,7 @@ class Nanode(object):
     def __init__(self, args, port="/dev/ttyUSB0"):
         self.port = port
         self.args = args
+        self.timeout = 30 if self.args.edit else None
         self._open_port()
         try:
             self.send_init_commands()
@@ -33,21 +34,22 @@ class Nanode(object):
         logging.debug("Sending init commands to Nanode...")
         self.send_command("v", 4) # don't show any debug log messages
         self.send_command("m") # manual pairing mode
-        if self.args.train:
+        if self.args.edit:
             self.send_command("u") # print data from all valid transmitters
         else:
             self.send_command("k") # Only print data from known transmitters        
-        
+    
+    def clear_serial(self):
+        self.serial.flushInput()
+    
     def readjson(self):
         json_line = None
-        while True:
-            line = self._readline()
-            if line and line[0] == "{":
-                json_line = json.loads(line)
-                break
+        line = self._readline()
+        if line and line[0] == "{":
+            json_line = json.loads(line)
         return json_line
         
-    def _readline(self):
+    def _readline(self, ignore_json=False):
         retries = 0
         while retries < Nanode.MAX_RETRIES:
             retries += 1
@@ -57,6 +59,8 @@ class Nanode(object):
             elif line == "Finished init":
                 logging.info("Nanode restart detected")
                 raise NanodeRestart()
+            elif ignore_json and line[0]=="{":
+                continue
             else: # line is not restart text, but may be empty
                 if line:
                     logging.debug("NANODE: {}".format(line.strip()))                
@@ -72,7 +76,8 @@ class Nanode(object):
         
     def _open_port(self):
         logging.debug("Opening port {}".format(self.port))
-        self.serial = serial.Serial(port=self.port, baudrate=115200, timeout=1)
+        self.serial = serial.Serial(port=self.port, baudrate=115200
+                                    ,timeout=self.timeout)
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
         
@@ -83,7 +88,7 @@ class Nanode(object):
         self._process_response()
         if param:
             self.serial.write(str(param) + "\r")
-            echo = self._readline()
+            echo = self._readline(ignore_json=True)
             if echo != str(param):
                 raise NanodeError("Attempted to send command {:s}{:d}, "
                                   "received incorrect echo: {:s}"
@@ -94,13 +99,11 @@ class Nanode(object):
         retries = 0
         while retries < Nanode.MAX_RETRIES:
             retries += 1
-            response = self._readline().split()
+            response = self._readline(ignore_json=True).split()
             if not response:
                 continue # retry if we get a blank line
             elif response[0] == "ACK":
-                break # success!
-            elif response[0][0] == "{":
-                continue # ignore this JSON and read next line            
+                break # success!          
             elif response[0] == "NAK":
                 raise NanodeError(response)
             
