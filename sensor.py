@@ -1,4 +1,5 @@
 from __future__ import print_function
+from input_with_quit import input_with_quit
 
 class Sensor(object):
     """Each Transmitter can have 1 to 3 Sensors."""
@@ -9,7 +10,7 @@ class Sensor(object):
         self.tx = transmitter
 
     def update_name(self):
-        new_name = raw_input("  New name for sensor [{:s}]:".format(self.name))
+        new_name = input_with_quit("  New name for sensor [{:s}]:".format(self.name))
         if new_name:
             self.name = new_name
         
@@ -19,7 +20,7 @@ class Sensor(object):
                            else self.tx.manager.next_free_log_chan()
                 
         while True:
-            new_log_chan_str = raw_input("  New log channel or 0 to not log [{:d}]:"
+            new_log_chan_str = input_with_quit("  New log channel or 0 to not log [{:d}]:"
                                          .format(default_log_chan))
         
             if new_log_chan_str:

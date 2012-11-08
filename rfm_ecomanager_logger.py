@@ -10,14 +10,10 @@ def setup_argparser():
     parser = argparse.ArgumentParser(description="Log data from "
                                      "rfm_edf_ecomanager Nanode code.")
     
-    parser.add_argument('--promiscuous', dest='promiscuous', action='store_const',
+    parser.add_argument('--train', dest='train', action='store_const',
                         const=True, default=False, 
-                        help="Pair with all unknown transmitters.")
-
-    parser.add_argument('--edit', dest='edit', action='store_const',
-                        const=True, default=False, 
-                        help="Edit saved radio IDs.")
-    
+                        help="Pair with new transmitters or edit existing transmitters.")
+   
     parser.add_argument('--log', dest='loglevel', type=str, default='DEBUG',
                         help='DEBUG or INFO or WARNING (default: DEBUG)')    
 
@@ -42,12 +38,18 @@ def setup_logger(args):
 def main():
     args = setup_argparser()
     
+    args.train = True # TODO: remove after testing
+    
     setup_logger(args)
     
     print("rfm_ecomanager_logger")
     nanode = Nanode(args)
     manager = Manager(nanode, args)
-    manager.run()
+    
+    if args.train:
+        manager.run_training()
+    else:
+        manager.run_logging()
 
     
 if __name__ == "__main__":

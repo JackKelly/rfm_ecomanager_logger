@@ -1,7 +1,7 @@
 from __future__ import print_function
 import abc
 from sensor import Sensor                   
-
+from input_with_quit import input_with_quit
 
 class TransmitterError(Exception):
     """For errors from Transmitter objects"""
@@ -16,7 +16,7 @@ class Transmitter(object):
     
     @abc.abstractmethod
     def update_name(self, sensors=None):
-        pass
+        print("\nEditing transmitter {}. Press c to cancel.\n".format(self.id))      
 
     def accept_pair_request(self):
         print("Pairing with", self.id)
@@ -54,11 +54,25 @@ class Transmitter(object):
         odict = self.__dict__.copy() # copy the dict since we change it
         del odict['manager']
         return odict
+    
+    def print_sensors(self):
+        string = ""
+        first = True
+        for sensor_id, sensor in self.sensors.iteritems():
+            if first:
+                first = False
+            else:
+                string += "\n" + " "*23
+                
+            string += "{:>8d}{:>10d}{:>15s}" \
+                      .format(sensor_id, sensor.log_chan, sensor.name)
+        return string
 
 
 class Cc_trx(Transmitter):
     
     ADD_COMMAND = "N"
+    TYPE = "TRX"
     
     def __init__(self, rf_id, manager):
         super(Cc_trx, self).__init__(rf_id, manager)
@@ -70,22 +84,25 @@ class Cc_trx(Transmitter):
         self.nanode.send_command("R", self.id) # remove
         
     def update_name(self, sensors=None):
+        super(Cc_trx, self).update_name()
         self.sensors[1].update_name()
-    
+
 
 class Cc_tx(Transmitter):
     
     VALID_SENSOR_IDS = [1,2,3]
     ADD_COMMAND = "n"
+    TYPE = "TX"
 
     def __init__(self, rf_id, manager):
         super(Cc_tx, self).__init__(rf_id, manager)        
         self.sensors = {}
         
     def reject_pair_request(self):
-        pass
+        pass # there's nothing we can do for TXs
     
     def update_name(self, sensors=None):
+        super(Cc_tx, self).update_name()
         print("Sensor type = TX")
         print("Sensor ID =", self.id)
         
@@ -104,7 +121,7 @@ class Cc_tx(Transmitter):
                   " separated by a comma. Default="
                   , default_sensor_list, " : ", sep="", end="")
             
-            sensor_list_str = raw_input();
+            sensor_list_str = input_with_quit();
     
             if sensor_list_str == "":
                 sensor_list = default_sensor_list
