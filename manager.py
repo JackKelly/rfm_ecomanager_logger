@@ -216,8 +216,9 @@ class Manager(object):
             return yes_no_cancel("Pair request received from {}. Accept? Y/n/c: "
                                        .format(pair_request["id"]))
         else:
-            return yes_no_cancel("Unknown transmitter {}. Add? Y/n/c: "
-                                       .format(json_line["id"]))
+            return yes_no_cancel("Unknown transmitter {} with sensors {}. Add? Y/n/c: "
+                                       .format(json_line["id"], 
+                                               json_line["sensors"]))
     
     def _ask_user_for_index_and_retrieve_id(self):
         tx_id = None
@@ -230,12 +231,12 @@ class Manager(object):
     def _delete_transmitter(self):
         print("Deleting transmitter...")
         tx_id = self._ask_user_for_index_and_retrieve_id()
-        user_accepts = yes_no_cancel("Are you sure you want to delete tx index"
+        user_accepts = yes_no_cancel("Are you sure you want to delete tx "
                                      " {} ({})? Y/n/c: "
-                                    .format(i, self.transmitters[tx_id].print_names()))
+                                    .format(tx_id, self.transmitters[tx_id].print_names()))
         
         if user_accepts:
-            print("deleting tx index", i)
+            print("deleting tx", tx_id)
             self.transmitters[tx_id].delete_from_nanode()
             del self.transmitters[tx_id]
             self._pickle()
