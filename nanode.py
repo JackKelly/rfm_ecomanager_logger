@@ -14,6 +14,8 @@ class NanodeRestart(NanodeError):
 class Nanode(object):
     """Used to manage a Nanode running the rfm_edf_ecomanager code."""
     
+    MAX_RETRIES = 5
+    
     def __init__(self, args, port="/dev/ttyUSB0"):
         self.port = port
         self.args = args
@@ -77,7 +79,7 @@ class Nanode(object):
                   
     def _process_response(self):
         num_retries = 0
-        while num_retries < 5:
+        while num_retries < Nanode.MAX_RETRIES:
             num_retries += 1
             response = self._readline().split()
             if not response:
@@ -88,3 +90,7 @@ class Nanode(object):
                 pass # ignore this JSON and read next line            
             elif response[0] == "NAK":
                 raise NanodeError(response)
+            
+        if num_retries == Nanode.MAX_RETRIES:
+            raise NanodeError("Failed to receive a valid response after "
+                              "{:d} times".format(num_retries))
