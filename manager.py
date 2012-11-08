@@ -2,6 +2,7 @@ from __future__ import print_function
 from transmitter import Cc_tx, Cc_trx
 import pickle
 import time
+import sys
 from nanode import NanodeRestart
 from input_with_cancel import *
 
@@ -26,7 +27,9 @@ class Manager(object):
         try:
             pkl_file = open(Manager.PICKLE_FILE, "rb")
         except:
-            self.transmitters = {}
+            print("No {} file found. Please run with --edit command line option"
+                  " to train the system before logging data.")
+            sys.exit()
         else:
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
