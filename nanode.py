@@ -23,7 +23,7 @@ class Nanode(object):
     def __init__(self, args, port="/dev/ttyUSB0"):
         self.port = port
         self.args = args
-        self.timeout = 30 if self.args.edit else None
+        self.timeout = 30 # serial timeout in seconds
         self._open_port()
         try:
             self.send_init_commands()
@@ -32,6 +32,8 @@ class Nanode(object):
         
     def send_init_commands(self):
         logging.debug("Sending init commands to Nanode...")
+        self.clear_serial()
+        self.serial.write("\r")        
         self.send_command("v", 4) # don't show any debug log messages
         self.send_command("m") # manual pairing mode
         if self.args.edit:
@@ -59,7 +61,7 @@ class Nanode(object):
             elif line == "Finished init":
                 logging.info("Nanode restart detected")
                 raise NanodeRestart()
-            elif ignore_json and line[0]=="{":
+            elif line and ignore_json and line[0]=="{":
                 continue
             else: # line is not restart text, but may be empty
                 if line:
@@ -87,11 +89,12 @@ class Nanode(object):
         self.serial.write(cmd)
         self._process_response()
         if param:
-            self.serial.write(str(param) + "\r")
+            self.serial.write(str(param))
+            self.serial.write("\r")
             echo = self._readline(ignore_json=True)
             if echo != str(param):
-                raise NanodeError("Attempted to send command {:s}{:d}, "
-                                  "received incorrect echo: {:s}"
+                raise NanodeError("Attempted to send command {} {}, "
+                                  "received incorrect echo: {}"
                                   .format(cmd, param, echo))
             self._process_response()
                   
@@ -108,3 +111,4 @@ class Nanode(object):
                 raise NanodeError(response)
             
         self._throw_exception_if_too_many_retries(retries)   
+        

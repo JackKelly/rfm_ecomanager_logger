@@ -104,6 +104,12 @@ class Cc_trx(Transmitter):
         super(Cc_trx, self).update_name()
         self.sensors[1].update_name()
 
+    def switch(self, on_or_off):
+        if on_or_off:
+            self.manager.nanode.send_command("1", self.id)
+        else:
+            self.manager.nanode.send_command("0", self.id)
+
 
 class Cc_tx(Transmitter):
     

@@ -1,6 +1,7 @@
 from __future__ import print_function
 from transmitter import Cc_tx, Cc_trx
 import pickle
+import time
 from nanode import NanodeRestart
 from input_with_cancel import *
 
@@ -47,24 +48,6 @@ class Manager(object):
             for dummy, tx in self.transmitters.iteritems():
                 tx.add_to_nanode()
 
-    def _readjson(self):
-        try:
-            json_line = self.nanode.readjson()
-        except NanodeRestart:
-            self.nanode.send_init_commands()
-            self._tell_nanode_about_transmitters()
-            json_line = self.nanode.readjson()
-        return json_line
-
-    def run_logging(self):
-        while True:
-            json_line = self._readjson()
-            if json_line:
-                tx_id = json_line.get("id")
-                if tx_id in self.transmitters:
-                    self.transmitters[tx_id] \
-                        .new_reading(json_line.get("sensors"))
-
     def _count_transmitters(self):
         num_txs = 0
         num_trxs = 0
@@ -76,25 +59,24 @@ class Manager(object):
                 num_trxs += 1
                 
         return num_txs, num_trxs
-    
-    def _handle_pair_request(self, pr):
-        tx_id  = pr["id"]
-        if tx_id in self.transmitters.keys():
-            print("Pair request received from a TX we already know")
-            self.transmitters[tx_id].reject_pair_request()
-        else:
-            self._add_transmitter(tx_id, pr["type"])
-            self.transmitters[tx_id].accept_pair_request()
-            self.pickle()
 
-    def _add_transmitter(self, tx_id, tx_type):
-        self.transmitters[tx_id] = Cc_tx(tx_id, self) if tx_type=="tx" \
-                                   else Cc_trx(tx_id, self)
-        
-    def pickle(self):
-        output = open(Manager.PICKLE_FILE, "wb")
-        pickle.dump(self.transmitters, output)
-        output.close()
+    def run_logging(self):
+        while True:
+            json_line = self._readjson()
+            if json_line:
+                tx_id = json_line.get("id")
+                if tx_id in self.transmitters:
+                    self.transmitters[tx_id] \
+                        .new_reading(json_line.get("sensors"))
+
+    def _readjson(self):
+        try:
+            json_line = self.nanode.readjson()
+        except NanodeRestart:
+            self.nanode.send_init_commands()
+            self._tell_nanode_about_transmitters()
+            json_line = self.nanode.readjson()
+        return json_line
 
     def get_log_chan_list(self):
         log_ids = []
@@ -122,6 +104,7 @@ class Manager(object):
                     print("m      : manually enter transmitter ID")
                     print("<index>: edit known transmitter")
                     print("d      : delete known transmitter")
+                    print("s      : switch TRX on or off")
                     print("q      : quit")
                     print("")
                 elif cmd == "l": self._list_transmitters()
@@ -129,6 +112,7 @@ class Manager(object):
                 elif cmd == "m": self._manually_enter_id()
                 elif cmd.isdigit(): self._edit_transmitter(cmd)
                 elif cmd == "d": self._delete_transmitter()
+                elif cmd == "s": self._switch_trx()
                 elif cmd == "q":
                     print("quit\n") 
                     break
@@ -136,8 +120,8 @@ class Manager(object):
                 else:
                     print("Unrecognised command: '{}'\n".format(cmd))
             except Cancel, c:
-                print(c, "\n")
-                continue
+                print(c)
+            print("")
 
     def _list_transmitters(self):
         print("")
@@ -149,7 +133,6 @@ class Manager(object):
             print("{:>5d}{:>12d}{:>6}{}"
                   .format(log_chan, tx_id, self.transmitters[tx_id].TYPE
                           , self.transmitters[tx_id].print_sensors()))
-        print("")
     
     def _edit_transmitter(self, cmd):
         try:
@@ -160,8 +143,7 @@ class Manager(object):
         target_tx_id = self._get_tx_id_by_log_chan(target_log_chan)
                 
         self.transmitters[target_tx_id].update_name()
-        self.pickle()
-        print("")
+        self._pickle()
         
     def _get_tx_id_by_log_chan(self, target_log_chan):
         log_chans = self._get_log_chans_and_rf_ids()
@@ -183,8 +165,10 @@ class Manager(object):
         
     def _listen_for_new_tx(self):
         self.nanode.clear_serial()
-        print("Listening for transmitters...")
-        while True:
+        WAIT_TIME = 30
+        print("Listening for transmitters for 30 seconds...")
+        end_time = time.time() + WAIT_TIME
+        while time.time() < end_time:
             json_line = self._readjson()
             if not json_line: # emtpy line suggests timeout
                 print("No transmitters heard.")
@@ -194,21 +178,39 @@ class Manager(object):
                 
             # Handle data from Nanode
             if json_line.get("pr"): # pair request
-                if self._user_accepts(json_line):
+                if self._user_accepts_pairing(json_line):
                     print("Pairing with transmitter...")
                     self._handle_pair_request(json_line.get("pr"))
                     break
             elif tx_id not in self.transmitters:
-                if self._user_accepts(json_line):
+                if self._user_accepts_pairing(json_line):
                     print("Adding transmitter...")
                     self._add_transmitter(tx_id, json_line.get("type"))
                     self.transmitters[tx_id].add_to_nanode()
                     self.transmitters[tx_id].update_name(json_line.get("sensors"))
-                    self.pickle()
+                    self._pickle()
                     break
-        print("")
+
+    def _handle_pair_request(self, pr):
+        tx_id  = pr["id"]
+        if tx_id in self.transmitters.keys():
+            print("Pair request received from a TX we already know")
+            self.transmitters[tx_id].reject_pair_request()
+        else:
+            self._add_transmitter(tx_id, pr["type"])
+            self.transmitters[tx_id].accept_pair_request()
+            self._pickle()
+
+    def _add_transmitter(self, tx_id, tx_type):
+        self.transmitters[tx_id] = Cc_tx(tx_id, self) if tx_type=="tx" \
+                                   else Cc_trx(tx_id, self)
+        
+    def _pickle(self):
+        output = open(Manager.PICKLE_FILE, "wb")
+        pickle.dump(self.transmitters, output)
+        output.close()
                                 
-    def _user_accepts(self, json_line):
+    def _user_accepts_pairing(self, json_line):
         pair_request = json_line.get("pr")
         if pair_request:
             return yes_no_cancel("Pair request received from {}. Accept? Y/n/c: "
@@ -216,13 +218,18 @@ class Manager(object):
         else:
             return yes_no_cancel("Unknown transmitter {}. Add? Y/n/c: "
                                        .format(json_line["id"]))
-                
-    def _delete_transmitter(self):
+    
+    def _ask_user_for_index_and_retrieve_id(self):
         tx_id = None
         while not tx_id:
-            i = input_int_with_cancel("Enter index of transmitter to delete (or c to cancel): ")
+            i = input_int_with_cancel("Enter index of transmitter "
+                                      "(or c to cancel): ")
             tx_id = self._get_tx_id_by_log_chan(i)
-            
+        return tx_id
+    
+    def _delete_transmitter(self):
+        print("Deleting transmitter...")
+        tx_id = self._ask_user_for_index_and_retrieve_id()
         user_accepts = yes_no_cancel("Are you sure you want to delete tx index"
                                      " {} ({})? Y/n/c: "
                                     .format(i, self.transmitters[tx_id].print_names()))
@@ -231,8 +238,36 @@ class Manager(object):
             print("deleting tx index", i)
             self.transmitters[tx_id].delete_from_nanode()
             del self.transmitters[tx_id]
-            self.pickle()
+            self._pickle()
         
-        print("")
+    def _manually_enter_id(self):
+        while True:
+            tx_type = input_with_cancel("Is this a 'TX' or 'TRX'? [TRX]: ")
+            tx_type = tx_type.upper()
+            if tx_type == "":
+                tx_type = "TRX"
+                break
+            elif tx_type == "TRX" or tx_type == "TX":
+                break
+            else:
+                print("'{}' is not a valid tx type. Please enter 'TX' or "
+                      "'TRX' or 'c' to cancel.".format(tx_type))
+       
+        tx_id = input_int_with_cancel("Please enter the {}'s RF ID: "
+                                      .format(tx_type))
+       
+        self._add_transmitter(tx_id, tx_type)
+        self.transmitters[tx_id].add_to_nanode()
+        self.transmitters[tx_id].update_name()
+        self._pickle()
+
+    def _switch_trx(self):
+        print("Switching TRX on or off...")
+        tx_id = self._ask_user_for_index_and_retrieve_id()
+        if self.transmitters[tx_id].TYPE == "TX":
+            print("That's a TX not a TRX. We can't switch TXs.")
+            return
         
-            
+        on_or_off = input_int_with_cancel("On (1) or off (0)? ")
+        self.transmitters[tx_id].switch(on_or_off)
+        

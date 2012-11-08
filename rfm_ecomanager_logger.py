@@ -39,7 +39,7 @@ def setup_logger(args):
 def main():
     args = setup_argparser()
     
-    args.edit = True # TODO: remove after testing
+    # args.edit = True # TODO: remove after testing
     
     setup_logger(args)
     
