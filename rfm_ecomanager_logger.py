@@ -1,7 +1,10 @@
+#!/usr/bin/python
 from __future__ import print_function
 import argparse
 import logging
 import time
+import os
+import sys
 from nanode import Nanode
 from manager import Manager
 
@@ -15,9 +18,31 @@ def setup_argparser():
                         help="Pair with new transmitters or edit existing transmitters.")
    
     parser.add_argument('--log', dest='loglevel', type=str, default='DEBUG',
-                        help='DEBUG or INFO or WARNING (default: DEBUG)')    
+                        help='DEBUG or INFO or WARNING (default: DEBUG)')  
+    
+    parser.add_argument('--data-directory', dest='data_directory', type=str
+                        ,default='data/'
+                        ,help='directory for storing data (default: ./data/)')    
+    
+    return parser.parse_args()
 
-    return parser.parse_args()    
+
+def pre_process_data_directory(args):
+
+    # append trailing slash to data_directory if necessary
+    if args.data_directory[-1] != "/":
+        args.data_directory += "/"
+    
+    # if directory doesn't exist then create it
+    if not os.path.isdir(args.data_directory[:-1]):
+        if os.path.exists(args.data_directory[:-1]):
+            logging.critical("The path specified as the data directory '{}' "
+                          "is not a directory but is a file. Please try again."
+                          .format(args.data_directory[:-1]))
+            sys.exit(1)
+        os.makedirs(args.data_directory)
+
+    return args
 
 
 def setup_logger(args):
@@ -42,6 +67,8 @@ def main():
     # args.edit = True # TODO: remove after testing
     
     setup_logger(args)
+    
+    args = pre_process_data_directory(args)
     
     print("rfm_ecomanager_logger")
     nanode = Nanode(args)
