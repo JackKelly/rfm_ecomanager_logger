@@ -49,7 +49,7 @@ class Nanode(object):
         else:
             self.send_command("k") # Only print data from known transmitters
         self._time_offset = None                    
-        self._first_nanode_time = self._get_nanode_time()[1]
+        self._last_nanode_time = self._get_nanode_time()[1]
         self._set_time_offset()
     
     def _set_time_offset(self):
@@ -58,14 +58,22 @@ class Nanode(object):
             retries += 1
             start_time, nanode_time, end_time = self._get_nanode_time()
             if nanode_time:
-                # Nanode sends time 10ms after receipt of the 't' command
+                # Nanode sends time 10ms after receipt ocf the 't' command
                 new_time_offset = end_time - (nanode_time / 1000)
+                
+                # Detect rollover
+                if nanode_time < self._last_nanode_time:
+                    roll_over_detected = True
+                    logging.debug("Rollover detected.")            
+                else: 
+                    roll_over_detected = False 
                 
                 # Test if new_time_offset is stupidly different from the
                 # old time offset
-                if self._time_offset and (
+                if self._time_offset and not roll_over_detected and (
                   new_time_offset > self._time_offset+Nanode.MAX_ACCEPTABLE_DRIFT or
                   new_time_offset < self._time_offset-Nanode.MAX_ACCEPTABLE_DRIFT):
+                    logging.debug("new_time_offset is too dissimilar to self._time_offset")
                     continue  
                 
                 # Test
@@ -88,6 +96,8 @@ class Nanode(object):
                 self._deadline_to_update_time_offset = start_time + \
                                      Nanode.TIME_OFFSET_UPDATE_PERIOD
                 break
+        if nanode_time:
+            self._last_nanode_time = nanode_time
     
     def _get_nanode_time(self):
         retries = 0
@@ -129,15 +139,15 @@ class Nanode(object):
             if data.is_pairing_request:
                 json_line = json_line.get("pr")
             
-            data_time = json_line.get("t")
+            nanode_time = json_line.get("t")
             if self._deadline_to_update_time_offset < time.time():
                 self._set_time_offset()
-            elif data_time < self._first_nanode_time: # roll-over of Nanode's clock  
-                logging.debug("Rollover detected.")              
-                self._first_nanode_time = data_time
+            elif nanode_time < self._last_nanode_time: # roll-over of Nanode's clock  
                 self._set_time_offset()
-                
-            data.timecode = self._time_offset + (data_time / 1000)
+            
+            self._last_nanode_time = nanode_time
+            
+            data.timecode = self._time_offset + (nanode_time / 1000)
             logging.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
                   .format(data.timecode, t, data.timecode-t))           
             data.timecode = int(round(data.timecode))
