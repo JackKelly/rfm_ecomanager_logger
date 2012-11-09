@@ -12,7 +12,7 @@ class Manager(object):
     Attributes:
       - nanode (Nanode)
       - transmitters  (dict of Transmitters)
-      - args
+      - _args
       
     """
     
@@ -20,7 +20,7 @@ class Manager(object):
     
     def __init__(self, nanode, args):
         self.nanode = nanode
-        self.args = args
+        self._args = args
         self.abort = False
 
         # if radio_ids exists then open it and load data, tell Nanode
@@ -51,7 +51,7 @@ class Manager(object):
         
         log_chans.sort()
 
-        with open(self.args.data_directory + "labels.dat", "w") as labels_file:
+        with open(self._args.data_directory + "labels.dat", "w") as labels_file:
             for log_chan, name in log_chans:
                 labels_file.write("{:02d} {:s}\n".format(log_chan, name))
             
@@ -82,22 +82,24 @@ class Manager(object):
     def run_logging(self):
         print("Running logging mode. Press CTRL+C to exit.")
         while not self.abort:
-            json_line = self._readjson()
-            if json_line:
-                tx_id = json_line.get("id")
-                timecode = json_line.get("t") # TODO process timecode
-                if tx_id in self.transmitters:
-                    self.transmitters[tx_id] \
-                        .new_reading(json_line, timecode)
+            data = self._read_sensor_data()
+            if data:
+                if data.tx_id in self.transmitters:
+                    self.transmitters[data.tx_id] \
+                        .new_reading(data)
+                else:
+                    logging.error("Unknown TX: {}".format(data.tx_id))
 
-    def _readjson(self):
-        try:
-            json_line = self.nanode.readjson()
-        except NanodeRestart:
-            self.nanode.send_init_commands()
-            self._tell_nanode_about_transmitters()
-            json_line = self.nanode.readjson()
-        return json_line
+    def _read_sensor_data(self):
+        while True:
+            try:
+                data = self.nanode.read_sensor_data()
+            except NanodeRestart:
+                self.nanode.init_nanode()
+                self._tell_nanode_about_transmitters()
+            else:
+                break
+        return data
 
     def get_log_chan_list(self):
         log_ids = []
@@ -188,40 +190,37 @@ class Manager(object):
         print("Listening for transmitters for 30 seconds...")
         end_time = time.time() + WAIT_TIME
         while time.time() < end_time:
-            json_line = self._readjson()
-            if not json_line: # emtpy line suggests timeout
+            data = self._read_sensor_data()
+            if not data: # emtpy line suggests timeout
                 print("No transmitters heard.")
                 return
-            
-            tx_id = json_line.get("id")
                 
             # Handle data from Nanode
-            if json_line.get("pr"): # pair request
-                if self._user_accepts_pairing(json_line):
+            if data.is_pairing_request:
+                if self._user_accepts_pairing(data):
                     print("Pairing with transmitter...")
-                    self._handle_pair_request(json_line.get("pr"))
+                    self._handle_pair_request(data)
                     break
-            elif tx_id not in self.transmitters:
-                if self._user_accepts_pairing(json_line):
+            elif data.tx_id not in self.transmitters:
+                if self._user_accepts_pairing(data):
                     print("Adding transmitter...")
-                    self._add_transmitter(tx_id, json_line.get("type"))
-                    self.transmitters[tx_id].add_to_nanode()
-                    self.transmitters[tx_id].update_name(json_line.get("sensors"))
+                    self._add_transmitter(data.tx_id, data.tx_type)
+                    self.transmitters[data.tx_id].add_to_nanode()
+                    self.transmitters[data.tx_id].update_name(data.sensors)
                     self._pickle()
                     break
 
-    def _handle_pair_request(self, pr):
-        tx_id  = pr["id"]
-        if tx_id in self.transmitters.keys():
+    def _handle_pair_request(self, data):
+        if data.tx_id in self.transmitters.keys():
             print("Pair request received from a TX we already know")
-            self.transmitters[tx_id].reject_pair_request()
+            self.transmitters[data.tx_id].reject_pair_request()
         else:
-            self._add_transmitter(tx_id, pr["type"])
-            self.transmitters[tx_id].accept_pair_request()
+            self._add_transmitter(data.tx_id, data.tx_type)
+            self.transmitters[data.tx_id].accept_pair_request()
             self._pickle()
 
     def _add_transmitter(self, tx_id, tx_type):
-        self.transmitters[tx_id] = Cc_tx(tx_id, self) if tx_type=="tx" \
+        self.transmitters[tx_id] = Cc_tx(tx_id, self) if tx_type.lower()=="tx" \
                                    else Cc_trx(tx_id, self)
         
     def _pickle(self):
@@ -229,15 +228,14 @@ class Manager(object):
             # "with" ensures we close the file, even if an exception occurs.
             pickle.dump(self.transmitters, output)
                                 
-    def _user_accepts_pairing(self, json_line):
-        pair_request = json_line.get("pr")
-        if pair_request:
+    def _user_accepts_pairing(self, data):
+        if data.is_pairing_request:
             return yes_no_cancel("Pair request received from {}. Accept? Y/n/c: "
-                                       .format(pair_request["id"]))
+                                       .format(data.tx_id))
         else:
             return yes_no_cancel("Unknown transmitter {} with sensors {}. Add? Y/n/c: "
-                                       .format(json_line["id"], 
-                                               json_line["sensors"]))
+                                       .format(data.tx_id, 
+                                               data.sensors))
     
     def _ask_user_for_index_and_retrieve_id(self):
         tx_id = None

@@ -12,7 +12,7 @@ from manager import Manager
 
 
 def setup_argparser():
-    # Process command line args
+    # Process command line _args
     parser = argparse.ArgumentParser(description="Log data from "
                                      "rfm_edf_ecomanager Nanode code.")
     

@@ -36,12 +36,12 @@ class Sensor(object):
         self.update_filename(tx)
     
     def update_filename(self, tx):
-        self.filename = tx.manager.args.data_directory + \
+        self.filename = tx.manager._args.data_directory + \
                         "channel_{:02d}.dat".format(self.log_chan)
                         
     def log_data_to_disk(self, timecode, watts):
         with open(self.filename, 'a') as data_file:
-            data_file.write("{} {}\n".format(timecode, watts))
+            data_file.write("{:d} {:d}\n".format(timecode, watts))
             # file will close when we leave "with" block
 
     def __getstate__(self):

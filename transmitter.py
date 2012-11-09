@@ -44,17 +44,16 @@ class Transmitter(object):
     def delete_from_nanode(self):
         self.manager.nanode.send_command(self.DEL_COMMAND, self.id)
 
-    def new_reading(self, json_line, timecode):
-        sensors = json_line.get("sensors")
-        for s_id, watts in sensors.iteritems():
+    def new_reading(self, data):
+        for s_id, watts in data.sensors.iteritems():
             s_id = int(s_id)
             if s_id in self.sensors.keys():
-                self.sensors[s_id].log_data_to_disk(timecode, watts)
+                self.sensors[s_id].log_data_to_disk(data.timecode, watts)
             else:
                 logging.error("Transmitter {:d} reports a sensor is connected to "
                       "port {:d} but we don't have any info for that sensor id."
                       .format(self.id, s_id))
-        
+
     def __getstate__(self):
         """Used by pickle()"""
         odict = self.__dict__.copy() # copy the dict since we change it
