@@ -14,6 +14,9 @@ def input_int_with_cancel(string=""):
     retries = 0
     while retries < 5:
         response = input_with_cancel(string)
+        if response == "":
+            return ""
+            
         try:
             return int(response)
         except ValueError:

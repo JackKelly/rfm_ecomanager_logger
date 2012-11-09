@@ -1,5 +1,6 @@
 from __future__ import print_function
 import abc
+import logging
 from sensor import Sensor                   
 from input_with_cancel import input_with_cancel
 
@@ -32,9 +33,10 @@ class Transmitter(object):
     def reject_pair_request(self, pr):
         pass
     
-    def unpickle(self):
+    def unpickle(self, manager):
+        self.manager = manager
         for dummy, sensor in self.sensors.iteritems():
-            sensor.transmitter = self
+            sensor.update_filename(self)
         
     def add_to_nanode(self):
         self.manager.nanode.send_command(self.ADD_COMMAND, self.id)
@@ -42,17 +44,17 @@ class Transmitter(object):
     def delete_from_nanode(self):
         self.manager.nanode.send_command(self.DEL_COMMAND, self.id)
 
-    
-    def new_reading(self, sensors):
-        for sensor, watts in sensors.iteritems():
-            sensor = int(sensor)
-            if sensor in self.sensors.keys():
-                self.sensors[sensor].new_reading(int(watts))
+    def new_reading(self, json_line, timecode):
+        sensors = json_line.get("sensors")
+        for s_id, watts in sensors.iteritems():
+            s_id = int(s_id)
+            if s_id in self.sensors.keys():
+                self.sensors[s_id].log_data_to_disk(timecode, watts)
             else:
-                print("Transmitter {:d} reports a sensor is connected to "
-                      "port {:d} but we don't have any info for that sensor."
-                      .format(self.id, sensor))
-    
+                logging.error("Transmitter {:d} reports a sensor is connected to "
+                      "port {:d} but we don't have any info for that sensor id."
+                      .format(self.id, s_id))
+        
     def __getstate__(self):
         """Used by pickle()"""
         odict = self.__dict__.copy() # copy the dict since we change it
@@ -102,7 +104,7 @@ class Cc_trx(Transmitter):
         
     def update_name(self, sensors=None):
         super(Cc_trx, self).update_name()
-        self.sensors[1].update_name()
+        self.sensors[1].update_name(self)
 
     def switch(self, on_or_off):
         if on_or_off:
@@ -125,23 +127,23 @@ class Cc_tx(Transmitter):
     def reject_pair_request(self):
         pass # there's nothing we can do for TXs
     
-    def update_name(self, sensors=None):
+    def update_name(self, detected_sensors=None):
         super(Cc_tx, self).update_name()
         print("Sensor type = TX")
         print("Sensor ID =", self.id)
         
         if self.sensors:
             default_sensor_list = self.sensors.keys()
-        elif sensors:
-            default_sensor_list = [int(s) for s in sensors.keys()]
-            for s in sensors:
-                print("Sensor", s, "=", sensors[s], "watts")
+        elif detected_sensors:
+            default_sensor_list = [int(s) for s in detected_sensors.keys()]
+            for s in detected_sensors:
+                print("Sensor", s, "=", detected_sensors[s], "watts")
         else:
             default_sensor_list = [1]
         
         ask_the_question = True
         while ask_the_question:
-            print("List the sensors inputs used on this transmitter,"
+            print("List the detected_sensors inputs used on this transmitter,"
                   " separated by a comma. Default="
                   , default_sensor_list, " : ", sep="", end="")
             
@@ -174,5 +176,5 @@ class Cc_tx(Transmitter):
         
         for s in self.sensors:
             print("SENSOR", s, ":")
-            self.sensors[s].update_name()
+            self.detected_sensors[s].update_name(self)
     

@@ -37,9 +37,23 @@ class Manager(object):
             pkl_file.close()
 
             for dummy, tx in self.transmitters.iteritems():
-                tx.unpickle()
+                tx.unpickle(self)
             
             self._tell_nanode_about_transmitters()
+            
+            self._create_labels_file()
+            
+    def _create_labels_file(self):
+        log_chans = []
+        for dummy, tx in self.transmitters.iteritems():
+            for dummy, sensor in tx.sensors.iteritems():
+                log_chans.append((sensor.log_chan, sensor.name))
+        
+        log_chans.sort()
+
+        with open(self.args.data_directory + "labels.dat", "w") as labels_file:
+            for log_chan, name in log_chans:
+                labels_file.write("{:02d} {:s}\n".format(log_chan, name))
             
     def _tell_nanode_about_transmitters(self):
         self.nanode.send_command("d") # delete all TXs
@@ -71,9 +85,10 @@ class Manager(object):
             json_line = self._readjson()
             if json_line:
                 tx_id = json_line.get("id")
+                timecode = json_line.get("t") # TODO process timecode
                 if tx_id in self.transmitters:
                     self.transmitters[tx_id] \
-                        .new_reading(json_line.get("sensors"))
+                        .new_reading(json_line, timecode)
 
     def _readjson(self):
         try:
@@ -162,7 +177,7 @@ class Manager(object):
     def _get_log_chans_and_rf_ids(self):
         log_chans = []
         for tx_id, tx in self.transmitters.iteritems():
-            log_chans.append((tx.sensors[1].log_chan, tx_id))
+            log_chans.append((tx.sensors.items()[0][1].log_chan, tx_id))
             
         log_chans.sort()
         return log_chans
