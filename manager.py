@@ -3,6 +3,7 @@ from transmitter import Cc_tx, Cc_trx
 import pickle
 import time
 import sys
+import sighandler
 from nanode import NanodeRestart
 from input_with_cancel import *
 
@@ -17,9 +18,10 @@ class Manager(object):
     
     PICKLE_FILE = "radioIDs.pkl"
     
-    def __init__(self, nanode, args):
+    def __init__(self, nanode, args, sig_handler=sighandler.SigHandler()):
         self.nanode = nanode
         self.args = args
+        self.sig_handler = sig_handler
 
         # if radio_ids exists then open it and load data, tell Nanode
         # how many TXs and TRXs there are and then inform Nanode of
@@ -64,7 +66,8 @@ class Manager(object):
         return num_txs, num_trxs
 
     def run_logging(self):
-        while True:
+        print("Running logging mode. Press CTRL+C to exit.")
+        while not self.sig_handler.abort:
             json_line = self._readjson()
             if json_line:
                 tx_id = json_line.get("id")
@@ -97,7 +100,9 @@ class Manager(object):
             return 1
     
     def run_editing(self):
+        self._list_transmitters()
         while True:
+            print("")
             cmd = raw_input("Enter command (or ? for help): ")
             try:
                 if cmd == "?":
@@ -109,7 +114,6 @@ class Manager(object):
                     print("d      : delete known transmitter")
                     print("s      : switch TRX on or off")
                     print("q      : quit")
-                    print("")
                 elif cmd == "l": self._list_transmitters()
                 elif cmd == "n": self._listen_for_new_tx()
                 elif cmd == "m": self._manually_enter_id()
@@ -124,7 +128,6 @@ class Manager(object):
                     print("Unrecognised command: '{}'\n".format(cmd))
             except Cancel, c:
                 print(c)
-            print("")
 
     def _list_transmitters(self):
         print("")

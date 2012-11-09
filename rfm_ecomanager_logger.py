@@ -5,8 +5,11 @@ import logging
 import time
 import os
 import sys
+import sighandler
 from nanode import Nanode
 from manager import Manager
+
+
 
 def setup_argparser():
     # Process command line args
@@ -22,7 +25,11 @@ def setup_argparser():
     
     parser.add_argument('--data-directory', dest='data_directory', type=str
                         ,default='data/'
-                        ,help='directory for storing data (default: ./data/)')    
+                        ,help='directory for storing data (default: ./data/)')
+    
+    parser.add_argument('--port', dest='port', type=str
+                        ,default='/dev/ttyUSB0'
+                        ,help='serial port (default: /dev/ttyUSB0)')    
     
     return parser.parse_args()
 
@@ -59,26 +66,31 @@ def setup_logger(args):
     
     logging.debug('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
                   .format(time.time()))
-    
 
-def main():
+
+def main():    
     args = setup_argparser()
-    
-    # args.edit = True # TODO: remove after testing
     
     setup_logger(args)
     
     args = pre_process_data_directory(args)
     
+    sig_handler = sighandler.SigHandler()
+    
     print("rfm_ecomanager_logger")
-    nanode = Nanode(args)
-    manager = Manager(nanode, args)
+    nanode = Nanode(args, sig_handler)
+    manager = Manager(nanode, args, sig_handler)
     
     if args.edit:
         manager.run_editing()
     else:
+        # register SIGINT and SIGTERM handler
+        sig_handler.register()
         manager.run_logging()
 
+    print("\nshutdown.\n")
+    logging.shutdown()
+    
     
 if __name__ == "__main__":
     main()

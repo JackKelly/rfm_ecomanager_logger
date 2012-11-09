@@ -2,6 +2,8 @@ from __future__ import print_function
 import serial
 import json
 import logging
+import select
+import sighandler
 
 class NanodeError(Exception):
     """Base class for errors from the Nanode."""
@@ -20,9 +22,9 @@ class Nanode(object):
     
     MAX_RETRIES = 5
     
-    def __init__(self, args, port="/dev/ttyUSB0"):
-        self.port = port
+    def __init__(self, args, sig_handler=sighandler.SigHandler()):
         self.args = args
+        self.sig_handler = sig_handler
         self.timeout = 30 # serial timeout in seconds
         self._open_port()
         try:
@@ -53,9 +55,20 @@ class Nanode(object):
         
     def _readline(self, ignore_json=False):
         retries = 0
-        while retries < Nanode.MAX_RETRIES:
+        while retries < Nanode.MAX_RETRIES and not self.sig_handler.abort:
             retries += 1
-            line = self.serial.readline().strip()
+            
+            try:
+                line = self.serial.readline().strip()
+            except select.error:
+                if self.sig_handler.abort:
+                    logging.debug("Caught select.error but this is nothing to "
+                                  "worry about because it was caused by keyboard "
+                                  "interrupt.")
+                    return ""
+                else:
+                    raise
+                
             if line == "EDF IAM Receiver":
                 continue # try again
             elif line == "Finished init":
@@ -77,11 +90,12 @@ class Nanode(object):
                               "after {:d} times".format(retries))
         
     def _open_port(self):
-        logging.debug("Opening port {}".format(self.port))
-        self.serial = serial.Serial(port=self.port, baudrate=115200
+        logging.debug("Opening port {}".format(self.args.port))
+        self.serial = serial.Serial(port=self.args.port, baudrate=115200
                                     ,timeout=self.timeout)
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
+        # self.serial will be closed when we destruct Nanode
         
     def send_command(self, cmd, param=None):
         logging.debug("send_command(cmd={}, param={})".format(cmd, param))
@@ -100,7 +114,7 @@ class Nanode(object):
                   
     def _process_response(self):
         retries = 0
-        while retries < Nanode.MAX_RETRIES:
+        while retries < Nanode.MAX_RETRIES and not self.sig_handler.abort:
             retries += 1
             response = self._readline(ignore_json=True).split()
             if not response:
@@ -111,4 +125,3 @@ class Nanode(object):
                 raise NanodeError(response)
             
         self._throw_exception_if_too_many_retries(retries)   
-        
