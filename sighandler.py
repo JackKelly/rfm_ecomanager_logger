@@ -3,9 +3,13 @@ import signal
 
 class SigHandler(object):
     def __init__(self):
-        self.abort = False
+        self.objects_to_stop = []
+        self._register()
     
-    def signal_handler(self, signal_number, frame):
+    def add_objects_to_stop(self, objects):
+        self.objects_to_stop.extend(objects)
+    
+    def _signal_handler(self, signal_number, frame):
         """Handle SIGINT and SIGTERM.
         
         Required to handle events like CTRL+C and kill.  Sets _abort to True
@@ -15,9 +19,10 @@ class SigHandler(object):
         signal_names = {signal.SIGINT: 'SIGINT', signal.SIGTERM: 'SIGTERM'}
         logging.critical("\nSignal {} received."
                                          .format(signal_names[signal_number]))
-        self.abort = True
+        for obj in self.objects_to_stop:
+            obj.abort = True
 
-    def register(self):
+    def _register(self):
         logging.info("setting signal handlers")
-        signal.signal(signal.SIGINT,  self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)        
+        signal.signal(signal.SIGINT,  self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)        

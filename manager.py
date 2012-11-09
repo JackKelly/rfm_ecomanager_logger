@@ -3,7 +3,7 @@ from transmitter import Cc_tx, Cc_trx
 import pickle
 import time
 import sys
-import sighandler
+import logging
 from nanode import NanodeRestart
 from input_with_cancel import *
 
@@ -18,10 +18,10 @@ class Manager(object):
     
     PICKLE_FILE = "radioIDs.pkl"
     
-    def __init__(self, nanode, args, sig_handler=sighandler.SigHandler()):
+    def __init__(self, nanode, args):
         self.nanode = nanode
         self.args = args
-        self.sig_handler = sig_handler
+        self.abort = False
 
         # if radio_ids exists then open it and load data, tell Nanode
         # how many TXs and TRXs there are and then inform Nanode of
@@ -40,7 +40,7 @@ class Manager(object):
                 tx.unpickle()
             
             self._tell_nanode_about_transmitters()
-
+            
     def _tell_nanode_about_transmitters(self):
         self.nanode.send_command("d") # delete all TXs
         self.nanode.send_command("D") # delete all TRXs        
@@ -67,7 +67,7 @@ class Manager(object):
 
     def run_logging(self):
         print("Running logging mode. Press CTRL+C to exit.")
-        while not self.sig_handler.abort:
+        while not self.abort:
             json_line = self._readjson()
             if json_line:
                 tx_id = json_line.get("id")
@@ -120,10 +120,8 @@ class Manager(object):
                 elif cmd.isdigit(): self._edit_transmitter(cmd)
                 elif cmd == "d": self._delete_transmitter()
                 elif cmd == "s": self._switch_trx()
-                elif cmd == "q":
-                    print("quit\n") 
-                    break
-                elif cmd == "": continue
+                elif cmd == "q": break
+                elif cmd == "" : continue
                 else:
                     print("Unrecognised command: '{}'\n".format(cmd))
             except Cancel, c:
@@ -212,9 +210,9 @@ class Manager(object):
                                    else Cc_trx(tx_id, self)
         
     def _pickle(self):
-        output = open(Manager.PICKLE_FILE, "wb")
-        pickle.dump(self.transmitters, output)
-        output.close()
+        with open(Manager.PICKLE_FILE, "wb") as output:
+            # "with" ensures we close the file, even if an exception occurs.
+            pickle.dump(self.transmitters, output)
                                 
     def _user_accepts_pairing(self, json_line):
         pair_request = json_line.get("pr")

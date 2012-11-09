@@ -3,7 +3,6 @@ import serial
 import json
 import logging
 import select
-import sighandler
 
 class NanodeError(Exception):
     """Base class for errors from the Nanode."""
@@ -22,9 +21,9 @@ class Nanode(object):
     
     MAX_RETRIES = 5
     
-    def __init__(self, args, sig_handler=sighandler.SigHandler()):
+    def __init__(self, args):
         self.args = args
-        self.sig_handler = sig_handler
+        self.abort = False
         self.timeout = 30 # serial timeout in seconds
         self._open_port()
         try:
@@ -55,13 +54,13 @@ class Nanode(object):
         
     def _readline(self, ignore_json=False):
         retries = 0
-        while retries < Nanode.MAX_RETRIES and not self.sig_handler.abort:
+        while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
             
             try:
                 line = self.serial.readline().strip()
             except select.error:
-                if self.sig_handler.abort:
+                if self.abort:
                     logging.debug("Caught select.error but this is nothing to "
                                   "worry about because it was caused by keyboard "
                                   "interrupt.")
@@ -95,7 +94,6 @@ class Nanode(object):
                                     ,timeout=self.timeout)
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
-        # self.serial will be closed when we destruct Nanode
         
     def send_command(self, cmd, param=None):
         logging.debug("send_command(cmd={}, param={})".format(cmd, param))
@@ -114,7 +112,7 @@ class Nanode(object):
                   
     def _process_response(self):
         retries = 0
-        while retries < Nanode.MAX_RETRIES and not self.sig_handler.abort:
+        while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
             response = self._readline(ignore_json=True).split()
             if not response:
@@ -124,4 +122,11 @@ class Nanode(object):
             elif response[0] == "NAK":
                 raise NanodeError(response)
             
-        self._throw_exception_if_too_many_retries(retries)   
+        self._throw_exception_if_too_many_retries(retries) 
+        
+    def __enter__(self):
+        return self  
+
+    def __exit__(self, type, value, traceback):
+        logging.debug("Nanode __exit__")
+        self.serial.close()
