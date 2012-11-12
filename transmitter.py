@@ -175,5 +175,5 @@ class Cc_tx(Transmitter):
         
         for s in self.sensors:
             print("SENSOR", s, ":")
-            self.detected_sensors[s].update_name(self)
+            self.sensors[s].update_name(self)
     
