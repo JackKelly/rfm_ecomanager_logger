@@ -69,7 +69,7 @@ class Transmitter(object):
             else:
                 string += "\n" + " "*23
                 
-            string += "{:>8d}{:>10d}{:>15s}" \
+            string += "{:>8d}{:>10d}{:>20s}" \
                       .format(sensor_id, sensor.log_chan, sensor.name)
         return string
 
@@ -94,7 +94,7 @@ class Cc_trx(Transmitter):
     
     def __init__(self, rf_id, manager):
         super(Cc_trx, self).__init__(rf_id, manager)
-        self.sensors = {1: Sensor(self)}
+        self.sensors = {1: Sensor()}
         
     def reject_pair_request(self):
         # Add and immediately remove
@@ -171,7 +171,7 @@ class Cc_tx(Transmitter):
 
         for s in sensor_list:
             if s not in self.sensors.keys():
-                self.sensors[s] = Sensor(self)
+                self.sensors[s] = Sensor()
         
         for s in self.sensors:
             print("SENSOR", s, ":")

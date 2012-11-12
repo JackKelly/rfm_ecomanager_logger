@@ -10,7 +10,6 @@ from nanode import Nanode
 from manager import Manager
 
 
-
 def setup_argparser():
     # Process command line _args
     parser = argparse.ArgumentParser(description="Log data from "

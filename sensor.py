@@ -37,7 +37,7 @@ class Sensor(object):
     
     def update_filename(self, tx):
         self.filename = tx.manager._args.data_directory + \
-                        "channel_{:02d}.dat".format(self.log_chan)
+                        "channel_{:d}.dat".format(self.log_chan)
                         
     def log_data_to_disk(self, timecode, watts):
         with open(self.filename, 'a') as data_file:

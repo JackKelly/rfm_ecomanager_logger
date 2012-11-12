@@ -53,7 +53,7 @@ class Manager(object):
 
         with open(self._args.data_directory + "labels.dat", "w") as labels_file:
             for log_chan, name in log_chans:
-                labels_file.write("{:02d} {:s}\n".format(log_chan, name))
+                labels_file.write("{:d} {:s}\n".format(log_chan, name))
             
     def _tell_nanode_about_transmitters(self):
         self.nanode.send_command("d") # delete all TXs
@@ -146,7 +146,7 @@ class Manager(object):
 
     def _list_transmitters(self):
         print("")
-        print("{:5s}{:>12s}{:>6}{:>8}{:>10}{:>15}"
+        print("{:5s}{:>12s}{:>6}{:>8}{:>10}{:>20}"
               .format("INDEX", "RF_ID", "TYPE", "SENSOR", "LOG_CHAN", "NAME"))
 
         log_chans = self._get_log_chans_and_rf_ids()
