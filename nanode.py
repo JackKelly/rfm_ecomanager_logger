@@ -135,24 +135,35 @@ class Nanode(object):
         if json_line:
             t = time.time()
             data = Data()
+            
+            # Handle "pair with" responses
+            if json_line.get("pw"):
+                data.pair_ack = True
+                data.tx_id = json_line.get("pw").get("id")
+                data.tx_type = json_line.get("pw").get("type")
+                return data
+            else:
+                data.pair_ack = False
+            
             data.is_pairing_request = True if json_line.get("pr") else False
             if data.is_pairing_request:
                 json_line = json_line.get("pr")
-            
-            nanode_time = json_line.get("t")
-            if self._deadline_to_update_time_offset < time.time():
-                self._set_time_offset()
-            elif nanode_time < self._last_nanode_time: # roll-over of Nanode's clock  
-                self._set_time_offset()
-            
-            self._last_nanode_time = nanode_time
-            
-            data.timecode = self._time_offset + (nanode_time / 1000)
-            logging.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
-                  .format(data.timecode, t, data.timecode-t))           
-            data.timecode = int(round(data.timecode))
-            
-            data.sensors  = json_line.get("sensors")
+            else:
+                nanode_time = json_line.get("t")
+                if self._deadline_to_update_time_offset < time.time():
+                    self._set_time_offset()
+                elif nanode_time < self._last_nanode_time: # roll-over of Nanode's clock  
+                    self._set_time_offset()
+                
+                self._last_nanode_time = nanode_time
+                
+                data.timecode = self._time_offset + (nanode_time / 1000)
+                logging.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
+                      .format(data.timecode, t, data.timecode-t))           
+                data.timecode = int(round(data.timecode))
+                
+                data.sensors  = json_line.get("sensors")
+                
             data.tx_id    = json_line.get("id")
             data.tx_type  = json_line.get("type")
             return data
