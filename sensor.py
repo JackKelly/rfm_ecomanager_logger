@@ -40,6 +40,8 @@ class Sensor(object):
                         "channel_{:d}.dat".format(self.log_chan)
                         
     def log_data_to_disk(self, timecode, watts):
+        if self.log_chan == 0:
+            return
         with open(self.filename, 'a') as data_file:
             data_file.write("{:d} {:d}\n".format(timecode, watts))
             # file will close when we leave "with" block
