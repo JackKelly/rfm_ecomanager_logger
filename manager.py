@@ -29,7 +29,7 @@ class Manager(object):
         try:
             pkl_file = open(Manager.PICKLE_FILE, "rb")
         except:
-            print("No {} file found. Please run with --edit command line option"
+            print(Manager.PICKLE_FILE, "file found. Please run with --edit command line option"
                   " to train the system before logging data.")
             sys.exit()
         else:
