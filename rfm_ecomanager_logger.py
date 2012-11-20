@@ -76,18 +76,21 @@ def main():
     
     print("rfm_ecomanager_logger")
     
-    with Nanode(args) as nanode:
-        manager = Manager(nanode, args)
-        
-        if args.edit:
-            manager.run_editing()
-        else:
-            # register SIGINT and SIGTERM handler
-            sig_handler = sighandler.SigHandler()
-            sig_handler.add_objects_to_stop([nanode, manager])
-            manager.run_logging()
+    try:
+        with Nanode(args) as nanode:
+            manager = Manager(nanode, args)
+            
+            if args.edit:
+                manager.run_editing()
+            else:
+                # register SIGINT and SIGTERM handler
+                sig_handler = sighandler.SigHandler()
+                sig_handler.add_objects_to_stop([nanode, manager])
+                manager.run_logging()
+    except:
+        logging.exception("")
+        raise
 
-    
     print("\nshutdown")
     logging.shutdown()
     
