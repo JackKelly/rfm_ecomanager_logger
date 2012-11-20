@@ -23,7 +23,7 @@ def setup_argparser():
                         help='DEBUG or INFO or WARNING (default: DEBUG)')  
     
     parser.add_argument('--data-directory', dest='data_directory', type=str
-                        ,default=os.path.dirname(os.path.realpath(__file__)) + 'data/'
+                        ,default=os.path.dirname(os.path.realpath(__file__)) + '/data/'
                         ,help='directory for storing data (default: ./data/)')
     
     parser.add_argument('--port', dest='port', type=str
