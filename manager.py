@@ -4,6 +4,7 @@ import pickle
 import time
 import sys
 import logging
+import os
 from nanode import NanodeRestart
 from input_with_cancel import *
 
@@ -16,7 +17,7 @@ class Manager(object):
       
     """
     
-    PICKLE_FILE = "radioIDs.pkl"
+    PICKLE_FILE = os.path.dirname(os.path.realpath(__file__)) + "/radioIDs.pkl"
     
     def __init__(self, nanode, args):
         self.nanode = nanode

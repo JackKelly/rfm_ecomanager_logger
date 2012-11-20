@@ -23,7 +23,7 @@ def setup_argparser():
                         help='DEBUG or INFO or WARNING (default: DEBUG)')  
     
     parser.add_argument('--data-directory', dest='data_directory', type=str
-                        ,default='data/'
+                        ,default=os.path.dirname(os.path.realpath(__file__)) + 'data/'
                         ,help='directory for storing data (default: ./data/)')
     
     parser.add_argument('--port', dest='port', type=str
@@ -57,10 +57,8 @@ def setup_logger(args):
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {}'.format(args.loglevel))
     
-    logging.basicConfig(filename='rfm_ecomanager_logger.log', level=numeric_level,
-                        #format='%(asctime)s level=%(levelname)s: '
-                        #'function=%(funcName)s, thread=%(threadName)s'
-                        #'\n   %(message)s'
+    logfile = os.path.dirname(os.path.realpath(__file__)) + "/rfm_ecomanager_logger.log" 
+    logging.basicConfig(filename=logfile, level=numeric_level, 
                         format="%(message)s")
     
     logging.debug('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
