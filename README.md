@@ -1,10 +1,12 @@
-# Python front-end for the rfm_edf_ecomanager RF base unit
+Python front-end for the [rfm_edf_ecomanager RF base unit](/JackKelly/rfm_edf_ecomanager/)
+
+### Permission denied error
 
 If you are using Linux and you get a "permission denied" error when trying
 to access the serial port then you'll need to change your udev rules.
 For example, try creating the following file:
 
-file: /etc/udev/rules.d/nanode.rules
+```file: /etc/udev/rules.d/nanode.rules```
 
 ```
 SUBSYSTEM!="usb_device", ACTION!="add", GOTO="nanode_rules_end"
