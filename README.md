@@ -4,6 +4,8 @@ to a set of log files in the same format as used by [MIT's REDD project](http://
 
 ### Related projects
 
+* [rfm_edf_ecomanager RF base unit](/JackKelly/rfm_edf_ecomanager/) Code which runs
+on a Nanode / Arduino and the rfm_ecomanager_logger talks to.
 * [babysitter](/JackKelly/babysitter) Keeps tabs on a logging process (like rfm_ecomanager_logger) and sends an
 email if problems are detected.
 * [powerstats](/JackKelly/powerstats) Create simple statistics from power data text files.  Mostly useful to check 
