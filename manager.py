@@ -147,8 +147,9 @@ class Manager(object):
 
     def _list_transmitters(self):
         print("")
-        print("{:5s}{:>12s}{:>6}{:>8}{:>10}{:>20}"
-              .format("INDEX", "RF_ID", "TYPE", "SENSOR", "LOG_CHAN", "NAME"))
+        print("{:5s}{:>12s}{:>6}{:>8}{:>5}{:>10}{:>20}"
+              .format("INDEX", "RF_ID", "TYPE", "SENSOR", "IAM?", "LOG_CHAN", "NAME"))
+        
 
         log_chans = self._get_log_chans_and_rf_ids()
         for log_chan, tx_id in log_chans:
