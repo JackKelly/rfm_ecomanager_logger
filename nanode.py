@@ -41,8 +41,11 @@ class Nanode(object):
     def init_nanode(self):
         logging.debug("Sending init commands to Nanode...")
         self.clear_serial()
-        self._serial.write("\r")        
-        self.send_command("v", 4) # don't show any debug log messages
+        self._serial.write("\r")
+        try:
+            self.send_command("v", 4) # don't show any debug log messages
+        except NanodeError:
+            pass # if Nanode code was compiled without LOGGING
         self.send_command("m") # manual pairing mode
         if self._args.edit:
             self.send_command("u") # print data from all valid transmitters
