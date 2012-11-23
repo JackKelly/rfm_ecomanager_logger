@@ -64,7 +64,7 @@ class Nanode(object):
                 # Detect rollover
                 if nanode_time < self._last_nanode_time:
                     roll_over_detected = True
-                    logging.debug("Rollover detected.")            
+                    logging.info("Rollover detected.")            
                 else: 
                     roll_over_detected = False 
                 
@@ -214,7 +214,7 @@ class Nanode(object):
                               "after {:d} times".format(retries))
         
     def _open_port(self):
-        logging.debug("Opening port {}".format(self._args.port))
+        logging.info("Opening port {}".format(self._args.port))
         self._serial = serial.Serial(port=self._args.port, baudrate=115200
                                     ,timeout=30)
         # Deliberately don't catch exception: if connecting to the 

@@ -19,8 +19,8 @@ def setup_argparser():
                         const=True, default=False, 
                         help="Pair with new transmitters or edit existing transmitters.")
    
-    parser.add_argument('--log', dest='loglevel', type=str, default='DEBUG',
-                        help='DEBUG or INFO or WARNING (default: DEBUG)')  
+    parser.add_argument('--log', dest='loglevel', type=str, default='INFO',
+                        help='DEBUG or INFO or WARNING (default: INFO)')  
     
     parser.add_argument('--data-directory', dest='data_directory', type=str
                         ,default=os.path.dirname(os.path.realpath(__file__)) + '/data/'
@@ -61,7 +61,7 @@ def setup_logger(args):
     logging.basicConfig(filename=logfile, level=numeric_level, 
                         format="%(message)s")
     
-    logging.debug('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
+    logging.info('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
                   .format(time.time()))
 
 
@@ -79,11 +79,13 @@ def main():
             manager = Manager(nanode, args)
             
             if args.edit:
+                logging.info("Running editing...")
                 manager.run_editing()
             else:
                 # register SIGINT and SIGTERM handler
                 sig_handler = sighandler.SigHandler()
                 sig_handler.add_objects_to_stop([nanode, manager])
+                logging.info("Running logging...")
                 manager.run_logging()
     except:
         logging.exception("")
