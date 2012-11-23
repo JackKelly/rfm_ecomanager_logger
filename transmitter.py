@@ -74,8 +74,11 @@ class Transmitter(object):
             else:
                 string += "\n" + " "*23
                 
-            string += "{:>8d}{:>10d}{:>20s}" \
-                      .format(sensor_id, sensor.log_chan, sensor.name)
+            string += "{:>8d}{:^5s}{:>10d}{:>20s}" \
+                      .format(sensor_id,
+                              "agg" if sensor.agg_chan else "iam", 
+                              sensor.log_chan, 
+                              sensor.name)
         return string
 
     def print_names(self):

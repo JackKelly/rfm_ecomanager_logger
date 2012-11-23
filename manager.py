@@ -231,10 +231,10 @@ class Manager(object):
                                 
     def _user_accepts_pairing(self, data):
         if data.is_pairing_request:
-            return yes_no_cancel("Pair request received from {}. Accept? Y/n/c: "
+            return yes_no_cancel("Pair request received from {}. Accept?"
                                        .format(data.tx_id))
         else:
-            return yes_no_cancel("Unknown transmitter {} with sensors {}. Add? Y/n/c: "
+            return yes_no_cancel("Unknown transmitter {} with sensors {}."
                                        .format(data.tx_id, 
                                                data.sensors))
     
@@ -250,7 +250,7 @@ class Manager(object):
         print("Deleting transmitter...")
         tx_id = self._ask_user_for_index_and_retrieve_id()
         user_accepts = yes_no_cancel("Are you sure you want to delete tx "
-                                     " {} ({})? Y/n/c: "
+                                     " {} ({})?"
                                     .format(tx_id, self.transmitters[tx_id].print_names()))
         
         if user_accepts:

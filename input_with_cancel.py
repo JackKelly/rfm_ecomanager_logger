@@ -26,13 +26,16 @@ def input_int_with_cancel(string=""):
     raise Cancel("Retries exceeded")
     
     
-def yes_no_cancel(string=""):
+def yes_no_cancel(string="", default=True):
+    string += " [Y/n/c]: " if default else " [y/N/c]: "
     retries = 0
     while retries < 5:
         retries += 1
         response = input_with_cancel(string)
         response = response.upper()
-        if response == "" or response == "Y":
+        if response == "":
+            return default
+        elif response == "Y":
             return True
         elif response == "N":
             return False
