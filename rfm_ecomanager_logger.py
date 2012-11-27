@@ -28,7 +28,11 @@ def setup_argparser():
     
     parser.add_argument('--port', dest='port', type=str
                         ,default='/dev/ttyUSB0'
-                        ,help='serial port (default: /dev/ttyUSB0)')    
+                        ,help='serial port (default: /dev/ttyUSB0)') 
+    
+    parser.add_argument('--do-not-switch', dest='switch', action='store_const',
+                        const=False, default=True, 
+                        help="Do not switch TRXs on if they are detected to be off.")
     
     return parser.parse_args()
 

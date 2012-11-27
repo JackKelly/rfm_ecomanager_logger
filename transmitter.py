@@ -59,6 +59,9 @@ class Transmitter(object):
                 logging.error("Transmitter {:d} reports a sensor is connected to "
                       "port {:d} but we don't have any info for that sensor id."
                       .format(self.id, s_id))
+                
+        if data.state is not None and data.state == 0 and self.manager.args.switch:
+            self.switch(1)
 
     def __getstate__(self):
         """Used by pickle()"""
@@ -115,6 +118,7 @@ class Cc_trx(Transmitter):
         self.sensors[1].update_name(self)
 
     def switch(self, on_or_off):
+        logging.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
         if on_or_off:
             self.manager.nanode.send_command("1", self.id)
         else:

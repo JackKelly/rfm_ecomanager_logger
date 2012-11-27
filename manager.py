@@ -13,7 +13,7 @@ class Manager(object):
     Attributes:
       - nanode (Nanode)
       - transmitters  (dict of Transmitters)
-      - _args
+      - args
       
     """
     
@@ -21,7 +21,7 @@ class Manager(object):
     
     def __init__(self, nanode, args):
         self.nanode = nanode
-        self._args = args
+        self.args = args
         self.abort = False
 
         # if radio_ids exists then open it and load data, tell Nanode
@@ -52,7 +52,7 @@ class Manager(object):
         
         log_chans.sort()
 
-        with open(self._args.data_directory + "labels.dat", "w") as labels_file:
+        with open(self.args.data_directory + "labels.dat", "w") as labels_file:
             for log_chan, name in log_chans:
                 labels_file.write("{:d} {:s}\n".format(log_chan, name))
             

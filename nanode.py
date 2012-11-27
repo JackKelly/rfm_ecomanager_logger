@@ -31,7 +31,7 @@ class Nanode(object):
     
     def __init__(self, args):
         self.abort = False        
-        self._args = args
+        self.args = args
         self._open_port()
         try:
             self.init_nanode()
@@ -47,7 +47,7 @@ class Nanode(object):
         except NanodeError:
             pass # if Nanode code was compiled without LOGGING
         self.send_command("m") # manual pairing mode
-        if self._args.edit:
+        if self.args.edit:
             self.send_command("u") # print data from all valid transmitters
         else:
             self.send_command("k") # Only print data from known transmitters
@@ -152,6 +152,7 @@ class Nanode(object):
             if data.is_pairing_request:
                 json_line = json_line.get("pr")
             else:
+                # Handle time
                 nanode_time = json_line.get("t")
                 if self._deadline_to_update_time_offset < time.time():
                     self._set_time_offset()
@@ -169,6 +170,7 @@ class Nanode(object):
                 
             data.tx_id    = json_line.get("id")
             data.tx_type  = json_line.get("type")
+            data.state    = json_line.get("state")
             return data
         else:
             return None
@@ -217,22 +219,24 @@ class Nanode(object):
                               "after {:d} times".format(retries))
         
     def _open_port(self):
-        logging.info("Opening port {}".format(self._args.port))
-        self._serial = serial.Serial(port=self._args.port, baudrate=115200
+        logging.info("Opening port {}".format(self.args.port))
+        self._serial = serial.Serial(port=self.args.port, baudrate=115200
                                     ,timeout=30)
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
         
     def send_command(self, cmd, param=None):
-        logging.debug("send_command(cmd={}, param={})".format(cmd, param))
+        cmd = str(cmd)
+        logging.debug("send_command(cmd={}, param={})".format(cmd, str(param)))
         self._serial.flushInput()
         self._serial.write(cmd)
         self._process_response()
         if param:
-            self._serial.write(str(param))
+            param = str(param)
+            self._serial.write(param)
             self._serial.write("\r")
             echo = self._readline(ignore_json=True)
-            if echo != str(param):
+            if echo != param:
                 raise NanodeError("Attempted to send command {} {}, "
                                   "received incorrect echo: {}"
                                   .format(cmd, param, echo))
