@@ -42,6 +42,7 @@ class Transmitter(object):
         self.manager = manager
         for dummy, sensor in self.sensors.iteritems():
             sensor.update_filename(self)
+            sensor.last_logged_timecode = 0
         
     def add_to_nanode(self):
         self.manager.nanode.send_command(self.ADD_COMMAND, self.id)

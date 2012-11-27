@@ -3,6 +3,7 @@ from input_with_cancel import input_with_cancel, input_int_with_cancel, yes_no_c
 
 MAX_POWER_FOR_AGG_CHAN = 10000
 MAX_POWER_FOR_IAM_CHAN =  3200
+MIN_SAMPLE_PERIOD = 3 # ignore samples which arrive closer than this
 
 class Sensor(object):
     """Each Transmitter can have 1 to 3 Sensors."""
@@ -12,6 +13,7 @@ class Sensor(object):
         self.log_chan = None
         self.filename = None
         self.agg_chan = False
+        self.last_logged_timecode = 0
 
     def update_name(self, tx):
         new_name = input_with_cancel("  New name for sensor [{:s}]:".format(self.name))
@@ -55,13 +57,19 @@ class Sensor(object):
         if self.agg_chan:
             if watts > MAX_POWER_FOR_AGG_CHAN:
                 return
-        else:
+        else: # IAM channel
             if watts > MAX_POWER_FOR_IAM_CHAN:
                 return
+        
+        # Ignore 2 samples in quick succession
+        if self.last_logged_timecode > (timecode - MIN_SAMPLE_PERIOD):
+            return
         
         with open(self.filename, 'a') as data_file:
             data_file.write("{:d} {:d}\n".format(timecode, watts))
             # file will close when we leave "with" block
+        
+        self.last_logged_timecode = timecode
 
     def __getstate__(self):
         """Used by pickle()"""
