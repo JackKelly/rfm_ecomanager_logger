@@ -1,5 +1,5 @@
 from __future__ import print_function
-from transmitter import Cc_tx, Cc_trx
+from transmitter import Cc_tx, Cc_trx, TransmitterError
 import pickle
 import time
 import sys
@@ -193,7 +193,7 @@ class Manager(object):
         end_time = time.time() + WAIT_TIME
         while time.time() < end_time:
             data = self._read_sensor_data()
-            if not data: # emtpy line suggests timeout
+            if not data: # empty line suggests timeout
                 print("No transmitters heard.")
                 return
                 
@@ -218,8 +218,13 @@ class Manager(object):
             self.transmitters[data.tx_id].reject_pair_request()
         else:
             self._add_transmitter(data.tx_id, data.tx_type)
-            self.transmitters[data.tx_id].accept_pair_request()
-            self._pickle()
+            try:
+                self.transmitters[data.tx_id].accept_pair_request()
+            except TransmitterError, e:
+                print(e)
+                del self.transmitters[data.tx_id]
+            else:
+                self._pickle()
 
     def _add_transmitter(self, tx_id, tx_type):
         self.transmitters[tx_id] = Cc_tx(tx_id, self) if tx_type.lower()=="tx" \
