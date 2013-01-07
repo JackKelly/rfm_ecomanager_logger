@@ -136,6 +136,7 @@ class Nanode(object):
     def read_sensor_data(self):           
         json_line = self._readjson()
         if json_line:
+            logging.debug("LINE: {}".format(json_line))
             t = time.time()
             data = Data()
             
@@ -188,7 +189,10 @@ class Nanode(object):
             retries += 1
             
             try:
-                line = self._serial.readline().strip()
+                logging.debug("Waiting for line from Nanode...")
+                line = self._serial.readline()
+                logging.debug(line) # TODO remove debug
+                line = line.strip()
             except select.error:
                 if self.abort:
                     logging.debug("Caught select.error but this is nothing to "
@@ -205,9 +209,8 @@ class Nanode(object):
                 raise NanodeRestart()
             elif line and ignore_json and line[0]=="{":
                 continue
-            else: # line is not restart text, but may be empty
-                if line:
-                    logging.debug("NANODE: {}".format(line.strip()))                
+            elif line: # line is not restart text, but may be empty
+                logging.debug("NANODE: {}".format(line))                
                 break
 
         self._throw_exception_if_too_many_retries(retries)        
