@@ -30,9 +30,11 @@ class Manager(object):
         try:
             pkl_file = open(Manager.PICKLE_FILE, "rb")
         except:
-            print(Manager.PICKLE_FILE, "file found. Please run with --edit command line option"
-                  " to train the system before logging data.")
-            sys.exit()
+            if self.args.edit:
+                self.transmitters = {}
+            else:
+                sys.exit("{:s} file not found. Please run with --edit command line option"
+                  " to train the system before logging data.".format(Manager.PICKLE_FILE))
         else:
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
@@ -146,6 +148,9 @@ class Manager(object):
                 print(c)
 
     def _list_transmitters(self):
+        if not self.transmitters:
+            return
+        
         print("")
         print("{:5s}{:>12s}{:>6}{:>8}{:>5}{:>10}{:>20}"
               .format("INDEX", "RF_ID", "TYPE", "SENSOR", "IAM?", "LOG_CHAN", "NAME"))
