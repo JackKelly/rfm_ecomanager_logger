@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = "rfm-ecomanager-logger",
+    name = "rfm_ecomanager_logger",
     version = "0.1dev",
     packages = find_packages(),
     install_requires = [],
