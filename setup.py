@@ -11,6 +11,6 @@ setup(
     license = "MIT",
     keywords = "power logging python",
     url = "https://github.com/JackKelly/rfm_ecomanager_logger/",
-    download_url = "https://github.com/JackKelly/rfm_ecomanager_logger/archive/master.zip",
+    download_url = "https://github.com/JackKelly/rfm_ecomanager_logger/archive/master.tar.gz",
     long_description = open('README.md').read()
 )
