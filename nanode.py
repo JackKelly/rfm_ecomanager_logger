@@ -42,10 +42,14 @@ class Nanode(object):
         logging.debug("Sending init commands to Nanode...")
         self.clear_serial()
         self._serial.write("\r")
+        
+        # Turn of LOGGING on the Nanode if necessary
         try:
             self.send_command("v", 4) # don't show any debug log messages
         except NanodeError:
             pass # if Nanode code was compiled without LOGGING
+        
+        # Other config commands...
         self.send_command("m") # manual pairing mode
         if self.args.edit:
             self.send_command("u") # print data from all valid transmitters
@@ -189,7 +193,8 @@ class Nanode(object):
             retries += 1
             
             try:
-                logging.debug("Waiting for line from Nanode...")
+                logging.debug("Waiting for line from Nanode (retries={})..."
+                              .format(retries))
                 line = self._serial.readline()
                 logging.debug(line) # TODO remove debug
                 line = line.strip()
@@ -201,17 +206,18 @@ class Nanode(object):
                     return ""
                 else:
                     raise
-                
-            if line == "EDF IAM Receiver":
-                continue # try again
-            elif line == "Finished init":
-                logging.info("Nanode restart detected")
-                raise NanodeRestart()
-            elif line and ignore_json and line[0]=="{":
-                continue
-            elif line: # line is not restart text, but may be empty
-                logging.debug("NANODE: {}".format(line))                
-                break
+            else:
+                if line:
+                    if line == "EDF IAM Receiver":
+                        continue # try again
+                    elif line == "Finished init":
+                        logging.info("Nanode restart detected")
+                        raise NanodeRestart()
+                    elif ignore_json and line[0]=="{":
+                        continue
+                    else: # line is not restart text, but may be empty
+                        logging.debug("NANODE: {}".format(line))                
+                        break
 
         self._throw_exception_if_too_many_retries(retries)        
         return line

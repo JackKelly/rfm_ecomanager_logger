@@ -200,10 +200,8 @@ class Manager(object):
             data = self._read_sensor_data()
             if not data: # empty line suggests timeout
                 print("No transmitters heard.")
-                return
-                
-            # Handle data from Nanode
-            if data.is_pairing_request:
+                break
+            elif data.is_pairing_request:
                 if self._user_accepts_pairing(data):
                     print("Pairing with transmitter...")
                     self._handle_pair_request(data)
