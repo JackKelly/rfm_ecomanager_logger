@@ -8,3 +8,7 @@ data*/
 nohup.*
 
 .pydevproject.bak
+src/
+rfm_ecomanager_logger.egg-info/
+build/
+
