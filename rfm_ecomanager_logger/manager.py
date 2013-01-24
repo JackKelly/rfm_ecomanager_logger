@@ -17,7 +17,7 @@ class Manager(object):
       
     """
     
-    PICKLE_FILE = os.path.dirname(os.path.realpath(__file__)) + "/radioIDs.pkl"
+    PICKLE_FILE = os.path.dirname(os.path.realpath(__file__)) + "/../radioIDs.pkl"
     
     def __init__(self, nanode, args):
         self.nanode = nanode

@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+
+# Pre-requisits
+# -------------
+#
+# The following environment variables must be set:
+#   RFM_ECOMANAGER_LOGGER_DIR
+#   POWERSTATS_DIR
+#   BABYSITTER_DIR
+#   RFM_EDF_ECOMANAGER_DIR
+#   DATA_DIR
+
+
+name[0]="RFM_ECOMANAGER_LOGGER"
+name[1]="POWERSTATS"
+name[2]="BABYSITTER"
+
+length=${#name[@]} # length of array `name`
+
+print_error()
+{
+    echo -e $1 >/dev/stderr
+}
+
+check_return_value ()
+{
+    if [ $? -ne 0 ]
+    then
+	print_error "ERROR. lm.sh script cannot finished. Please see above for error details.\n"
+	exit $?
+    fi
+}
+
+
+check_directory ()
+# Arguments: 1) path 2) variable name
+{
+    if [ -z "$1" ]
+    then
+	print_error "\n* ERROR: \$$2 directory is not set!\n"
+	exit 1
+    else
+	if [ -d "$1" ]
+	then
+	    echo "* \$$2 set to $1 which is a valid directory"
+	else
+	    print_error "\n* ERROR: \$$2 set to $1 WHICH IS NOT A DIRECTORY\n"
+	    exit 1
+	fi
+    fi    
+}
+
+
+start_process ()
+# Arguments: 1) directory, 2) file within directory, 3) process name
+{
+    # TODO: check if they're already running
+    echo -e "\nStarting $1/$2..."
+
+    # Check if it's already running
+    pgrep $3 > /dev/null
+    if [ $? -eq 0 ]
+    then
+	echo -e "$3 is already running so not re-starting it."
+	return
+    fi
+
+    # Start the process
+    cd $1
+    rm nohup.out
+    nohup $2 &
+
+    # Pause for 1 second
+    sleep 1
+
+    # Check if it's running
+    pgrep $3 > /dev/null
+    if [ $? -eq 0 ]
+    then
+	echo "Successfully started $1/$2"
+    else
+	print_error "ERROR: Failed to start $1/$2"
+	tail nohup.out >/dev/stderr
+	echo ""
+	exit 1
+    fi
+}
+
+wait_for_process_to_die ()
+# Arguments: 1) process name
+# Returns: 0 if process dies, 1 if process doesn't die
+{
+    MAX_SECONDS_TO_WAIT=10
+    for (( i=0; i<MAX_SECONDS_TO_WAIT; i++ ))
+    do
+	pgrep "$1" > /dev/null
+	if [ $? -ne 0 ]
+	then
+	    return 0
+	fi
+	sleep 1 # sleep for 1 second
+	echo "...waiting for $1 to die..."
+    done
+    return 1
+}
+
+kill_process ()
+# Arguments: 1) process name
+{
+    pgrep "$1" > /dev/null
+    if [ $? -eq 0 ]
+    then
+	echo "$1 is running so attempting to kill it:"
+	echo "/bin/kill $(pgrep "$1")"
+	/bin/kill $(pgrep "$1")
+
+	wait_for_process_to_die "$1"
+	if [ $? -eq 1 ]
+	then
+	    print_error "ERROR: Failed to kill $1. Will try again with '/bin/kill -s KILL'"
+	    /bin/kill -s KILL $(pgrep "$1")
+
+	    # check if we succeeded with -s KILL
+	    pgrep "$1" > /dev/null
+	    if [ $? -eq 1 ]
+	    then
+		echo "Successfully killed $1"
+	    else
+		echo "ERROR: Failed to kill $1 using -s KILL"
+	    fi
+	else
+	    echo "Successfull killed $1"
+	fi
+    else
+	echo "$1 is not running so no need to kill it."
+    fi
+
+}
+
+echo ""
+# create a `directory` array with the actual directories and sanity check
+echo "Running sanity checks..."
+for (( i=0; i<$length; i++ ))
+do
+    subst="${name[$i]}_DIR"
+    directory[$i]="${!subst}"
+    check_directory "${directory[$i]}" "${name[$i]}_DIR"
+done
+echo -e "...all sanity checks passed!\n"
+
+case "$1" in # switch on the first command
+
+"update")
+	echo "Updating code from github"
+	for (( i=0; i<$length; i++ ))
+	do
+	    echo ""
+	    echo "Updating ${name[$i]}"
+	    cd ${directory[$i]} && git pull
+	    check_return_value
+	done
+	;;
+
+"flash")
+	echo "Flashing Nanode with latest code from github"
+
+	echo "Checking whether rfm_ecomanager_logger is running:"
+	pgrep rfm_ecomanager_ > /dev/null
+	if [ $? -eq 0 ]
+	then
+	    print_error "ERROR: rfm_ecomager_logger is running."
+	    print_error "       Stop it using 'lm stop' and then try 'lm flash' again.\n"
+	    exit 1
+	else
+	    echo "Good. rfm_ecomanager_logger is not running.  Continuing..."
+	fi
+
+	check_directory "$RFM_EDF_ECOMANAGER_DIR" "RFM_EDF_ECOMANAGER_DIR"
+	echo "First, updating code from github:"
+	cd "$RFM_EDF_ECOMANAGER_DIR" && git pull
+	check_return_value
+
+	echo "Running flash.sh script:"
+	./flash.sh
+	check_return_value
+	;;
+
+"start")
+	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
+	start_process "$BABYSITTER_DIR" "babysitter/babysitter.py" "babysitter.py"
+	;;
+
+"stop")
+	echo "Stop logging"
+	kill_process "babysitter.py"
+	kill_process "rfm_ecomanager_"
+	;;
+
+"check")
+	echo "Checking whether rfm_ecomanager_logger and babysitter are running..."
+	for name in "rfm_ecomanager_" "babysitter.py"
+	do
+	    echo -e "\nChecking $name..."
+	    ps -A | grep "$name"
+	    pgrep "$name" > /dev/null
+	    if [ $? -eq 0 ]
+	    then
+		echo "$name is running"
+	    else
+		echo "$name is not running"
+	    fi
+	done
+	;;
+
+"data")
+	echo "Displaying data.  Press CTRL-C to stop..."
+	dat="$RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/data/*.dat"
+	echo $dat
+	tail -f $dat
+	;;
+
+*)
+	echo -e "Usage: 'lm {update|flash|start|stop|check|data}'\n"
+	echo -e "Typical usage pattern:"
+	echo -e "  1) Start logging using 'lm start'"
+	echo -e "  2) Check that the logging processes really are running with 'lm check'"
+	echo -e "  3) Check that data are coming in using 'lm data'"
+	echo -e "  4) Then, when you've finished logging, use 'lm stop'"
+	echo -e "  5) Update the Nanode's flash with the latest code using 'lm flash'\n"
+	exit 1
+	;;
+
+esac # end of case
+
+
+echo -e "\nAll done\n"
