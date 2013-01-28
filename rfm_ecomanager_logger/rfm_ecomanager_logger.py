@@ -1,7 +1,8 @@
 #!/usr/bin/python
 from __future__ import print_function
 import argparse
-import logging
+import logging, logging.handlers
+log = logging.getLogger("rfm_ecomanager_logger")
 import time
 import os
 import sys
@@ -46,7 +47,7 @@ def pre_process_data_directory(args):
         # if directory doesn't exist then create it
         if not os.path.isdir(args.data_directory):
             if os.path.exists(args.data_directory):
-                logging.critical("The path specified as the data directory '{}' "
+                log.critical("The path specified as the data directory '{}' "
                               "is not a directory but is a file. Please try again."
                               .format(args.data_directory))
                 sys.exit(1)
@@ -62,7 +63,6 @@ def pre_process_data_directory(args):
                 # Taken from http://stackoverflow.com/a/142535/732596
                 existing_subdirs = os.walk(data_dir).next()[1]
                 existing_subdirs.sort()
-                print(existing_subdirs)
                 try:
                     new_subdir_number = int(existing_subdirs[-1]) + 1
                 except:
@@ -70,39 +70,44 @@ def pre_process_data_directory(args):
                     
             new_subdir_name = "{:03d}".format(new_subdir_number)
             args.data_directory = data_dir + "/" + new_subdir_name
-            logging.info("Creating data directory {}".format(args.data_directory))
+            log.info("Creating data directory {}".format(args.data_directory))
             os.makedirs(args.data_directory)
                 
         else:
-            logging.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
+            log.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
             sys.exit(1)
-            
-        
-    
 
     return args
 
 
 def setup_logger(args):
+    # Process command line log level
     numeric_level = getattr(logging, args.loglevel.upper(), None)
-    
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {}'.format(args.loglevel))
     
-    logfile = os.path.dirname(os.path.realpath(__file__)) + "/../rfm_ecomanager_logger.log" 
+    # Get reference to logger
+    logger = logging.getLogger("rfm_ecomanager_logger")
+    logger.setLevel(numeric_level)
 
-    logging.basicConfig(filename=logfile, 
-                        level=numeric_level, 
-                        format="%(asctime)s;%(levelname)s;%(message)s", 
-                        datefmt="%Y-%m-%d %H:%M:%S")
+    # create formatter
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%y-%m-%d %H:%M:%S")
     
-    # send critical and errors to sys.__stderr__
-    stderr = logging.StreamHandler(sys.__stderr__)
-    stderr.setLevel(logging.WARNING)
-
+    # create console handler
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
     
-    logging.info('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
-                  .format(time.time()))
+    # create file handler
+    logfile = os.path.dirname(os.path.realpath(__file__)) + "/../rfm_ecomanager_logger.log"     
+    fh = logging.handlers.RotatingFileHandler(logfile, maxBytes=1E6, backupCount=5)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    
+    # Output first message
+    log.info("Starting up. Unixtime = {}".format(time.time()))
 
 
 def main():    
@@ -112,26 +117,23 @@ def main():
     
     args = pre_process_data_directory(args)
     
-    print("rfm_ecomanager_logger")
-    
     try:
         with Nanode(args) as nanode:
             manager = Manager(nanode, args)
             
             if args.edit:
-                logging.info("Running editing...")
+                log.info("Running editing...")
                 manager.run_editing()
             else:
                 # register SIGINT and SIGTERM handler
                 sig_handler = sighandler.SigHandler()
                 sig_handler.add_objects_to_stop([nanode, manager])
-                logging.info("Running logging...")
                 manager.run_logging()
     except:
-        logging.exception("")
+        log.exception("")
         raise
 
-    print("\nshutdown")
+    log.info("shutdown\n")
     logging.shutdown()
     
     

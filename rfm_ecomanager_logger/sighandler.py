@@ -1,4 +1,5 @@
 import logging
+log = logging.getLogger("rfm_ecomanager_logger")
 import signal
 
 class SigHandler(object):
@@ -19,13 +20,12 @@ class SigHandler(object):
         signal_names = {signal.SIGINT: 'SIGINT', 
                         signal.SIGTERM: 'SIGTERM'}
         
-        logging.critical("\nSignal {} received."
-                         .format(signal_names[signal_number]))
+        log.critical("Signal {} received.".format(signal_names[signal_number]))
         
         for obj in self.objects_to_stop:
             obj.abort = True
 
     def _register(self):
-        logging.info("setting signal handlers")
+        log.info("setting signal handlers")
         signal.signal(signal.SIGINT,  self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)

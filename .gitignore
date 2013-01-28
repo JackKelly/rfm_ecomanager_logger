@@ -4,8 +4,10 @@
 *.*~
 *.pkl
 *.log
+*.log.*
 data*/
 nohup.*
+*.old
 
 .pydevproject.bak
 src/

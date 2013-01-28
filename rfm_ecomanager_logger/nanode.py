@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import serial
 import json
 import logging
+log = logging.getLogger("rfm_ecomanager_logger")
 import select
 import time
 
@@ -39,7 +40,7 @@ class Nanode(object):
             self.init_nanode() # re-send init commands after restart
         
     def init_nanode(self):
-        logging.debug("Sending init commands to Nanode...")
+        log.debug("Sending init commands to Nanode...")
         self.clear_serial()
         self._serial.write("\r")
         
@@ -70,7 +71,7 @@ class Nanode(object):
                 # Detect rollover
                 if nanode_time < self._last_nanode_time:
                     roll_over_detected = True
-                    logging.info("Rollover detected.")            
+                    log.info("Rollover detected.")            
                 else: 
                     roll_over_detected = False 
                 
@@ -79,21 +80,21 @@ class Nanode(object):
                 if self._time_offset and not roll_over_detected and (
                   new_time_offset > self._time_offset+Nanode.MAX_ACCEPTABLE_DRIFT or
                   new_time_offset < self._time_offset-Nanode.MAX_ACCEPTABLE_DRIFT):
-                    logging.debug("new_time_offset is too dissimilar to self._time_offset")
+                    log.debug("new_time_offset is too dissimilar to self._time_offset")
                     continue  
                 
                 # Test
                 test_time = new_time_offset + (self._get_nanode_time()[1] / 1000)                
                 if (test_time > time.time()+Nanode.MAX_ACCEPTABLE_DRIFT or
                     test_time < time.time()-Nanode.MAX_ACCEPTABLE_DRIFT):
-                    logging.debug("test_time too dissimilar to time.time(). diff={}"
+                    log.debug("test_time too dissimilar to time.time(). diff={}"
                                   .format(test_time - time.time()) )
                     continue
                 
                 # Log time offset details
-                logging.debug("Updated time_offset to {}".format(new_time_offset))
+                log.debug("Updated time_offset to {}".format(new_time_offset))
                 if self._time_offset:
-                    logging.debug("  was {}, diff is {}"
+                    log.debug("  was {}, diff is {}"
                                   .format(self._time_offset, 
                                           new_time_offset-self._time_offset))
                 
@@ -115,17 +116,17 @@ class Nanode(object):
             nanode_time = self._readline()
             end_time = time.time()
             latency = end_time - start_time
-            logging.debug("latency = {}".format(latency))
+            log.debug("latency = {}".format(latency))
             
             if latency > Nanode.MAX_ACCEPTABLE_LATENCY:
-                logging.debug("Latency {} too high".format(latency))
+                log.debug("Latency {} too high".format(latency))
                 nanode_time = None
                 continue            
 
             try:
                 nanode_time = int(nanode_time)
             except:
-                logging.debug("Failed to convert {} to an int.".format(nanode_time))
+                log.debug("Failed to convert {} to an int.".format(nanode_time))
                 nanode_time = None
                 continue
             else:
@@ -139,7 +140,7 @@ class Nanode(object):
     def read_sensor_data(self, retries=MAX_RETRIES):           
         json_line = self._readjson(retries=retries)
         if json_line:
-            logging.debug("LINE: {}".format(json_line))
+            log.debug("LINE: {}".format(json_line))
             t = time.time()
             data = Data()
             
@@ -166,7 +167,7 @@ class Nanode(object):
                 self._last_nanode_time = nanode_time
                 
                 data.timecode = self._time_offset + (nanode_time / 1000)
-                logging.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
+                log.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
                       .format(data.timecode, t, data.timecode-t))           
                 data.timecode = int(round(data.timecode))
                 
@@ -192,14 +193,13 @@ class Nanode(object):
             retries -= 1
             
             try:
-                logging.debug("Waiting for line from Nanode (retries left={})..."
+                log.debug("Waiting for line from Nanode (retries left={})..."
                               .format(retries))
-                line = self._serial.readline()
-                logging.debug(line) # TODO remove debug
-                line = line.strip()
+                line = self._serial.readline().strip()
+                log.debug("From Nanode: {}".format(line))                
             except select.error:
                 if self.abort:
-                    logging.debug("Caught select.error but this is nothing to "
+                    log.debug("Caught select.error but this is nothing to "
                                   "worry about because it was caused by keyboard "
                                   "interrupt.")
                     return ""
@@ -213,29 +213,28 @@ class Nanode(object):
                                        "Interrupt attached", 
                                        "Finished init"]
                         nanode_restart = False
+                        log.info("Nanode startup sequence detected.")
                         for startup_line in startup_seq:
                             time.sleep(1)
                             line = self._serial.readline().strip()
-                            logging.info("Nanode: {}".format(line))
+                            log.info("Nanode: {}".format(line))
                             if line == startup_line:
                                 nanode_restart = True
                             else:
-                                logging.info("Nanode crash detected. Attempting serial restart")
+                                log.info("Nanode crash detected. Attempting serial restart")
                                 self._serial.close()
                                 self._open_port()
                                 nanode_restart = False
                                 break
                             
                         if nanode_restart:
-                            logging.info("Nanode restart detected")
+                            log.info("Nanode restart detected")
                             raise NanodeRestart()
 
                     elif ignore_json and line[0]=="{":
                         continue
-                    else: # line is not restart text, but may be empty
-                        logging.debug("NANODE: {}".format(line))                
-                        break
-        
+                    else: # line is something we should return              
+                        return line
         return line
     
     def _throw_exception_if_too_many_retries(self, retries):
@@ -244,17 +243,17 @@ class Nanode(object):
                               "after {:d} times".format(retries))
         
     def _open_port(self):
-        logging.info("Opening port {}".format(self.args.port))
+        log.info("Opening port {}".format(self.args.port))
         self._serial = serial.Serial(port=self.args.port, 
                                      baudrate=115200,
                                      timeout=1)
-        logging.info("Successfully opened port {}".format(self.args.port))
+        log.info("Successfully opened port {}".format(self.args.port))
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
         
     def send_command(self, cmd, param=None):
         cmd = str(cmd)
-        logging.debug("send_command(cmd={}, param={})".format(cmd, str(param)))
+        log.debug("send_command(cmd={}, param={})".format(cmd, str(param)))
         self._serial.flushInput()
         self._serial.write(cmd)
         self._process_response()
@@ -287,5 +286,5 @@ class Nanode(object):
         return self  
 
     def __exit__(self, type, value, traceback):
-        logging.debug("Nanode __exit__")
+        log.debug("Nanode __exit__")
         self._serial.close()

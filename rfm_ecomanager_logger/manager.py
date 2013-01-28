@@ -4,6 +4,7 @@ import pickle
 import time
 import sys
 import logging
+log = logging.getLogger("rfm_ecomanager_logger")
 import os
 from nanode import NanodeRestart, NanodeTooManyRetries, Nanode
 from input_with_cancel import *
@@ -84,7 +85,7 @@ class Manager(object):
         return num_txs, num_trxs
 
     def run_logging(self):
-        print("Running logging mode. Press CTRL+C to exit.")
+        log.info("Running logging mode. Press CTRL+C to exit.")
         while not self.abort:
             data = self._read_sensor_data(retries=1000)
             if data:
@@ -92,7 +93,7 @@ class Manager(object):
                     self.transmitters[data.tx_id] \
                         .new_reading(data)
                 else:
-                    logging.error("Unknown TX: {}".format(data.tx_id))
+                    log.error("Unknown TX: {}".format(data.tx_id))
 
     def _read_sensor_data(self, retries=Nanode.MAX_RETRIES):
         while True:
