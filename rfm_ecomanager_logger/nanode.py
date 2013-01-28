@@ -136,8 +136,8 @@ class Nanode(object):
     def clear_serial(self):
         self._serial.flushInput()
     
-    def read_sensor_data(self):           
-        json_line = self._readjson()
+    def read_sensor_data(self, retries=MAX_RETRIES):           
+        json_line = self._readjson(retries=retries)
         if json_line:
             logging.debug("LINE: {}".format(json_line))
             t = time.time()
@@ -179,20 +179,20 @@ class Nanode(object):
         else:
             return None
     
-    def _readjson(self):
+    def _readjson(self, retries=MAX_RETRIES):
         json_line = None
-        line = self._readline()
+        line = self._readline(retries=retries)
         if line and line[0] == "{":
             json_line = json.loads(line)
         return json_line
         
-    def _readline(self, ignore_json=False):
-        retries = 0
-        while retries < Nanode.MAX_RETRIES and not self.abort:
-            retries += 1
+    def _readline(self, ignore_json=False, retries=MAX_RETRIES):
+        line = ""
+        while retries >= 0 and not self.abort:
+            retries -= 1
             
             try:
-                logging.debug("Waiting for line from Nanode (retries={})..."
+                logging.debug("Waiting for line from Nanode (retries left={})..."
                               .format(retries))
                 line = self._serial.readline()
                 logging.debug(line) # TODO remove debug
@@ -207,7 +207,7 @@ class Nanode(object):
                     raise
             else:
                 if line:
-                    if line == "EDF IAM Receiver":
+                    if line == "EDF IAM Receiver": # Handle Nanode startup
                         startup_seq = ["SPI initialised", 
                                        "Attaching interrupt", 
                                        "Interrupt attached", 
@@ -235,8 +235,7 @@ class Nanode(object):
                     else: # line is not restart text, but may be empty
                         logging.debug("NANODE: {}".format(line))                
                         break
-
-        self._throw_exception_if_too_many_retries(retries)        
+        
         return line
     
     def _throw_exception_if_too_many_retries(self, retries):

@@ -5,7 +5,7 @@ import time
 import sys
 import logging
 import os
-from nanode import NanodeRestart
+from nanode import NanodeRestart, NanodeTooManyRetries, Nanode
 from input_with_cancel import *
 
 class Manager(object):
@@ -86,7 +86,7 @@ class Manager(object):
     def run_logging(self):
         print("Running logging mode. Press CTRL+C to exit.")
         while not self.abort:
-            data = self._read_sensor_data()
+            data = self._read_sensor_data(retries=1000)
             if data:
                 if data.tx_id in self.transmitters:
                     self.transmitters[data.tx_id] \
@@ -94,10 +94,10 @@ class Manager(object):
                 else:
                     logging.error("Unknown TX: {}".format(data.tx_id))
 
-    def _read_sensor_data(self):
+    def _read_sensor_data(self, retries=Nanode.MAX_RETRIES):
         while True:
             try:
-                data = self.nanode.read_sensor_data()
+                data = self.nanode.read_sensor_data(retries=retries)
             except NanodeRestart:
                 self.nanode.init_nanode()
                 self._tell_nanode_about_transmitters()
@@ -129,7 +129,7 @@ class Manager(object):
                 if cmd == "?":
                     print("")
                     print("l      : list all known transmitters")
-                    print("a      : toggle require_pair_request mode (currently {})"
+                    print("t      : toggle require_pair_request mode (currently {})"
                           .format("ON" if self._require_pair_request else "OFF"))
                     print("n      : listen for new transmitter")
                     print("m      : manually enter transmitter ID")
@@ -138,8 +138,12 @@ class Manager(object):
                     print("s      : switch TRX on or off")
                     print("q      : quit")
                 elif cmd == "l": self._list_transmitters()
-                elif cmd == "a": self._toggle_auto_pair() # TODO <<<<
-                elif cmd == "n": self._listen_for_new_tx()
+                elif cmd == "t": self._toggle_auto_pair()
+                elif cmd == "n":
+                    try:
+                        self._listen_for_new_tx()
+                    except KeyboardInterrupt:
+                        raise Cancel("\nUser aborted listening for new TX.")
                 elif cmd == "m": self._manually_enter_id()
                 elif cmd.isdigit(): self._edit_transmitter(cmd)
                 elif cmd == "d": self._delete_transmitter()
@@ -203,26 +207,28 @@ class Manager(object):
     def _listen_for_new_tx(self):
         self.nanode.clear_serial()
         WAIT_TIME = 30
-        print("Listening for transmitters for 30 seconds...")
+        print("Listening for transmitters for 30 seconds (press CTRL-C to abort)...")
         end_time = time.time() + WAIT_TIME
-        while time.time() < end_time:
-            data = self._read_sensor_data()
-            if not data: # empty line suggests timeout
-                print("No transmitters heard.")
-                break
-            elif data.is_pairing_request:
-                if self._user_accepts_pairing(data):
-                    print("Pairing with transmitter...")
-                    self._handle_pair_request(data)
-                    break
-            elif data.tx_id not in self.transmitters:
-                if self._user_accepts_pairing(data):
-                    print("Adding transmitter...")
-                    self._add_transmitter(data.tx_id, data.tx_type)
-                    self.transmitters[data.tx_id].add_to_nanode()
-                    self.transmitters[data.tx_id].update_name(data.sensors)
-                    self._pickle()
-                    break
+        success = False
+        while time.time() < end_time and not success:
+            data = self._read_sensor_data(retries=0)
+            if data:
+                if data.is_pairing_request:
+                    if self._user_accepts_pairing(data):
+                        print("Pairing with transmitter...")
+                        self._handle_pair_request(data)
+                        success = True
+                elif data.tx_id not in self.transmitters:
+                    if self._user_accepts_pairing(data):
+                        print("Adding transmitter...")
+                        self._add_transmitter(data.tx_id, data.tx_type)
+                        self.transmitters[data.tx_id].add_to_nanode()
+                        self.transmitters[data.tx_id].update_name(data.sensors)
+                        self._pickle()
+                        success = True
+                    
+        if not success:
+            print("No transmitter heard")
 
     def _handle_pair_request(self, data):
         if data.tx_id in self.transmitters.keys():
