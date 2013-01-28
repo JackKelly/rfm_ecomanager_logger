@@ -55,7 +55,7 @@ class Manager(object):
         
         log_chans.sort()
 
-        with open(self.args.data_directory + "labels.dat", "w") as labels_file:
+        with open(self.args.data_directory + "/labels.dat", "w") as labels_file:
             for log_chan, name in log_chans:
                 labels_file.write("{:d} {:s}\n".format(log_chan, name))
             

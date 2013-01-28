@@ -23,8 +23,8 @@ def setup_argparser():
                         help='DEBUG or INFO or WARNING (default: INFO)')  
     
     parser.add_argument('--data-directory', dest='data_directory', type=str
-                        ,default=os.path.dirname(os.path.realpath(__file__)) + '/data/'
-                        ,help='directory for storing data (default: ./data/)')
+                        ,default=""
+                        ,help='directory for storing data (default: $DATA_DIR/XYZ/)')
     
     parser.add_argument('--port', dest='port', type=str
                         ,default='/dev/ttyUSB0'
@@ -39,18 +39,46 @@ def setup_argparser():
 
 def pre_process_data_directory(args):
 
-    # append trailing slash to data_directory if necessary
-    if args.data_directory[-1] != "/":
-        args.data_directory += "/"
-    
-    # if directory doesn't exist then create it
-    if not os.path.isdir(args.data_directory[:-1]):
-        if os.path.exists(args.data_directory[:-1]):
-            logging.critical("The path specified as the data directory '{}' "
-                          "is not a directory but is a file. Please try again."
-                          .format(args.data_directory[:-1]))
+    if args.data_directory:
+        # append trailing slash to data_directory if necessary
+        args.data_directory = os.path.realpath(args.data_directory)
+            
+        # if directory doesn't exist then create it
+        if not os.path.isdir(args.data_directory):
+            if os.path.exists(args.data_directory):
+                logging.critical("The path specified as the data directory '{}' "
+                              "is not a directory but is a file. Please try again."
+                              .format(args.data_directory))
+                sys.exit(1)
+            else:
+                os.makedirs(args.data_directory)
+    else: # use default for args.data_directory
+        data_dir = os.environ.get("DATA_DIR") 
+        if data_dir:
+            data_dir = os.path.realpath(data_dir)
+            new_subdir_number = 0
+            if os.path.isdir(data_dir):
+                # Get just the names of the directories within data_dir
+                # Taken from http://stackoverflow.com/a/142535/732596
+                existing_subdirs = os.walk(data_dir).next()[1]
+                existing_subdirs.sort()
+                print(existing_subdirs)
+                try:
+                    new_subdir_number = int(existing_subdirs[-1]) + 1
+                except:
+                    pass # use default new_subdir_number
+                    
+            new_subdir_name = "{:03d}".format(new_subdir_number)
+            args.data_directory = data_dir + "/" + new_subdir_name
+            logging.info("Creating data directory {}".format(args.data_directory))
+            os.makedirs(args.data_directory)
+                
+        else:
+            logging.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
             sys.exit(1)
-        os.makedirs(args.data_directory)
+            
+        
+    
 
     return args
 
@@ -67,6 +95,11 @@ def setup_logger(args):
                         level=numeric_level, 
                         format="%(asctime)s;%(levelname)s;%(message)s", 
                         datefmt="%Y-%m-%d %H:%M:%S")
+    
+    # send critical and errors to sys.__stderr__
+    stderr = logging.StreamHandler(sys.__stderr__)
+    stderr.setLevel(logging.WARNING)
+
     
     logging.info('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
                   .format(time.time()))
