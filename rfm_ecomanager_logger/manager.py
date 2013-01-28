@@ -24,7 +24,7 @@ class Manager(object):
         self.args = args
         self.abort = False
 
-        # if radio_ids exists then open it and load data, tell Nanode
+        # if radioIDs.pkl exists then open it and load data, tell Nanode
         # how many TXs and TRXs there are and then inform Nanode of
         # each TX and TRX.
         try:

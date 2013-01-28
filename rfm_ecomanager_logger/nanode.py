@@ -43,9 +43,11 @@ class Nanode(object):
         self.clear_serial()
         self._serial.write("\r")
         
-        # Turn of LOGGING on the Nanode if necessary
+        # Turn off LOGGING on the Nanode if necessary
         try:
             self.send_command("v", 4) # don't show any debug log messages
+        except NanodeRestart:
+            raise
         except NanodeError:
             pass # if Nanode code was compiled without LOGGING
         
@@ -209,10 +211,28 @@ class Nanode(object):
             else:
                 if line:
                     if line == "EDF IAM Receiver":
-                        continue # try again
-                    elif line == "Finished init":
-                        logging.info("Nanode restart detected")
-                        raise NanodeRestart()
+                        startup_seq = ["SPI initialised", 
+                                       "Attaching interrupt", 
+                                       "Interrupt attached", 
+                                       "Finished init"]
+                        nanode_restart = False
+                        for startup_line in startup_seq:
+                            time.sleep(1)
+                            line = self._serial.readline().strip()
+                            logging.info("Nanode: {}".format(line))
+                            if line == startup_line:
+                                nanode_restart = True
+                            else:
+                                logging.info("Nanode crash detected. Attempting serial restart")
+                                self._serial.close()
+                                self._open_port()
+                                nanode_restart = False
+                                break
+                            
+                        if nanode_restart:
+                            logging.info("Nanode restart detected")
+                            raise NanodeRestart()
+
                     elif ignore_json and line[0]=="{":
                         continue
                     else: # line is not restart text, but may be empty
@@ -229,8 +249,10 @@ class Nanode(object):
         
     def _open_port(self):
         logging.info("Opening port {}".format(self.args.port))
-        self._serial = serial.Serial(port=self.args.port, baudrate=115200
-                                    ,timeout=30)
+        self._serial = serial.Serial(port=self.args.port, 
+                                     baudrate=115200,
+                                     timeout=1)
+        logging.info("Successfully opened port {}".format(self.args.port))
         # Deliberately don't catch exception: if connecting to the 
         # Serial port fails then we need to terminate.
         
@@ -264,7 +286,7 @@ class Nanode(object):
                 raise NanodeError(response)
             
         self._throw_exception_if_too_many_retries(retries) 
-        
+                
     def __enter__(self):
         return self  
 

@@ -61,9 +61,12 @@ def setup_logger(args):
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: {}'.format(args.loglevel))
     
-    logfile = os.path.dirname(os.path.realpath(__file__)) + "/rfm_ecomanager_logger.log" 
-    logging.basicConfig(filename=logfile, level=numeric_level, 
-                        format="%(message)s")
+    logfile = os.path.dirname(os.path.realpath(__file__)) + "/../rfm_ecomanager_logger.log" 
+
+    logging.basicConfig(filename=logfile, 
+                        level=numeric_level, 
+                        format="%(asctime)s;%(levelname)s;%(message)s", 
+                        datefmt="%Y-%m-%d %H:%M:%S")
     
     logging.info('MAIN: rfm_ecomanager_logger.py starting up. Unixtime = {:.0f}'
                   .format(time.time()))
