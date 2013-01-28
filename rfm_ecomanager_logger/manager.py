@@ -32,6 +32,7 @@ class Manager(object):
         except:
             if self.args.edit:
                 self.transmitters = {}
+                self._require_pair_request = True
             else:
                 sys.exit("{:s} file not found. Please run with --edit command line option"
                   " to train the system before logging data.".format(Manager.PICKLE_FILE))
@@ -128,6 +129,8 @@ class Manager(object):
                 if cmd == "?":
                     print("")
                     print("l      : list all known transmitters")
+                    print("a      : toggle require_pair_request mode (currently {})"
+                          .format("ON" if self._require_pair_request else "OFF"))
                     print("n      : listen for new transmitter")
                     print("m      : manually enter transmitter ID")
                     print("<index>: edit known transmitter")
@@ -135,6 +138,7 @@ class Manager(object):
                     print("s      : switch TRX on or off")
                     print("q      : quit")
                 elif cmd == "l": self._list_transmitters()
+                elif cmd == "a": self._toggle_auto_pair() # TODO <<<<
                 elif cmd == "n": self._listen_for_new_tx()
                 elif cmd == "m": self._manually_enter_id()
                 elif cmd.isdigit(): self._edit_transmitter(cmd)
@@ -190,6 +194,11 @@ class Manager(object):
             
         log_chans.sort()
         return log_chans
+        
+    def _toggle_auto_pair(self):
+        self._require_pair_request = not self._require_pair_request
+        print("\nToggling require_pair_request to", "ON" if self._require_pair_request else "OFF")
+        self.nanode.send_command("k" if self._require_pair_request else "u")
         
     def _listen_for_new_tx(self):
         self.nanode.clear_serial()

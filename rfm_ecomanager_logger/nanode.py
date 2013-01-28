@@ -53,10 +53,7 @@ class Nanode(object):
         
         # Other config commands...
         self.send_command("m") # manual pairing mode
-        if self.args.edit:
-            self.send_command("u") # print data from all valid transmitters
-        else:
-            self.send_command("k") # Only print data from known transmitters
+        self.send_command("k") # Only print data from known transmitters
         self._time_offset = None                    
         self._last_nanode_time = self._get_nanode_time()[1]
         self._set_time_offset()
