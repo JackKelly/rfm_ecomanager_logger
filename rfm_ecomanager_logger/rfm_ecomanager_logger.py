@@ -129,9 +129,10 @@ def main():
                 sig_handler = sighandler.SigHandler()
                 sig_handler.add_objects_to_stop([nanode, manager])
                 manager.run_logging()
+    except SystemExit:
+        pass
     except:
         log.exception("")
-        raise
 
     log.info("shutdown\n")
     logging.shutdown()

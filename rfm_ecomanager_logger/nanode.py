@@ -5,6 +5,7 @@ import logging
 log = logging.getLogger("rfm_ecomanager_logger")
 import select
 import time
+import sys
 
 class NanodeError(Exception):
     """Base class for errors from the Nanode."""
@@ -40,24 +41,28 @@ class Nanode(object):
             self.init_nanode() # re-send init commands after restart
         
     def init_nanode(self):
-        log.debug("Sending init commands to Nanode...")
-        self.clear_serial()
-        self._serial.write("\r")
-        
-        # Turn off LOGGING on the Nanode if necessary
-        try:
-            self.send_command("v", 4) # don't show any debug log messages
-        except NanodeRestart:
-            raise
-        except NanodeError:
-            pass # if Nanode code was compiled without LOGGING
-        
-        # Other config commands...
-        self.send_command("m") # manual pairing mode
-        self.send_command("k") # Only print data from known transmitters
-        self._time_offset = None                    
-        self._last_nanode_time = self._get_nanode_time()[1]
-        self._set_time_offset()
+        log.info("Sending init commands to Nanode...")
+        retries = 2
+        while retries > 0 and not self.abort:
+            retries -= 1
+            self.clear_serial()
+            self._serial.write("\r")
+            
+            # Turn off LOGGING on the Nanode if necessary
+            try:
+                self.send_command("v", 4) # don't show any debug log messages
+            except NanodeRestart:
+                continue # retry
+            except NanodeError:
+                pass # if Nanode code was compiled without LOGGING
+            
+            # Other Nanode config commands...
+            self.send_command("m") # manual pairing mode
+            self.send_command("k") # Only print data from known transmitters
+            self._time_offset = None                    
+            self._last_nanode_time = self._get_nanode_time()[1]
+            self._set_time_offset()
+            break
     
     def _set_time_offset(self):
         retries = 0
@@ -187,54 +192,71 @@ class Nanode(object):
             json_line = json.loads(line)
         return json_line
         
+        
+    def _readline_with_exception_handling(self):
+        """Wrap serial.readline() with exception handling."""
+        try:
+            log.debug("Waiting for line from Nanode")
+            line = self._serial.readline().strip()
+        except select.error:
+            if self.abort:
+                log.debug("Caught select.error but this is nothing to "
+                              "worry about because it was caused by keyboard "
+                              "interrupt.")
+                return ""
+            else:
+                raise
+        except serial.SerialException, e:
+            log.exception("")
+            log.info("Attempting to restart serial connection and Nanode:")
+            self._serial.close()
+            time.sleep(1)
+            self._open_port()
+            log.info("Up and running again.")
+            raise NanodeRestart()
+        except serial.serialutil.SerialException, e:
+            log.critical("Is the Nanode plugged into port {}?".format(self.args.port))
+            sys.exit(1)
+        else:
+            log.debug("From Nanode: {}".format(line))                
+            return line
+        
+    
     def _readline(self, ignore_json=False, retries=MAX_RETRIES):
         line = ""
         while retries >= 0 and not self.abort:
             retries -= 1
-            
-            try:
-                log.debug("Waiting for line from Nanode (retries left={})..."
-                              .format(retries))
-                line = self._serial.readline().strip()
-                log.debug("From Nanode: {}".format(line))                
-            except select.error:
-                if self.abort:
-                    log.debug("Caught select.error but this is nothing to "
-                                  "worry about because it was caused by keyboard "
-                                  "interrupt.")
-                    return ""
-                else:
-                    raise
-            else:
-                if line:
-                    if line == "EDF IAM Receiver": # Handle Nanode startup
-                        startup_seq = ["SPI initialised", 
-                                       "Attaching interrupt", 
-                                       "Interrupt attached", 
-                                       "Finished init"]
-                        nanode_restart = False
-                        log.info("Nanode startup sequence detected.")
-                        for startup_line in startup_seq:
-                            time.sleep(1)
-                            line = self._serial.readline().strip()
-                            log.info("Nanode: {}".format(line))
-                            if line == startup_line:
-                                nanode_restart = True
-                            else:
-                                log.info("Nanode crash detected. Attempting serial restart")
-                                self._serial.close()
-                                self._open_port()
-                                nanode_restart = False
-                                break
-                            
-                        if nanode_restart:
-                            log.info("Nanode restart detected")
-                            raise NanodeRestart()
+            log.debug("retries left = {}".format(retries))
+            line = self._readline_with_exception_handling()
+            if line:
+                if line == "EDF IAM Receiver": # Handle Nanode startup
+                    startup_seq = ["SPI initialised", 
+                                   "Attaching interrupt", 
+                                   "Interrupt attached", 
+                                   "Finished init"]
+                    nanode_restart = False
+                    log.info("Nanode startup sequence detected.")
+                    for startup_line in startup_seq:
+                        time.sleep(1)
+                        line = self._readline_with_exception_handling()
+                        log.info("Nanode: {}".format(line))
+                        if line == startup_line:
+                            nanode_restart = True
+                        else:
+                            log.info("Nanode crash detected. Attempting serial restart")
+                            self._serial.close()
+                            self._open_port()
+                            nanode_restart = False
+                            break
+                        
+                    if nanode_restart:
+                        log.info("Nanode has finished initialising")
+                        raise NanodeRestart()
 
-                    elif ignore_json and line[0]=="{":
-                        continue
-                    else: # line is something we should return              
-                        return line
+                elif ignore_json and line[0]=="{":
+                    continue
+                else: # line is something we should return              
+                    return line
         return line
     
     def _throw_exception_if_too_many_retries(self, retries):
@@ -244,12 +266,16 @@ class Nanode(object):
         
     def _open_port(self):
         log.info("Opening port {}".format(self.args.port))
-        self._serial = serial.Serial(port=self.args.port, 
-                                     baudrate=115200,
-                                     timeout=1)
-        log.info("Successfully opened port {}".format(self.args.port))
-        # Deliberately don't catch exception: if connecting to the 
-        # Serial port fails then we need to terminate.
+        try:
+            self._serial = serial.Serial(port=self.args.port, 
+                                         baudrate=115200,
+                                         timeout=1) # timeout in seconds
+        except serial.serialutil.SerialException, e:
+            log.critical("Is the Nanode plugged into port {}?".format(self.args.port))
+            sys.exit(1)
+        else:
+            log.info("Successfully opened port {}".format(self.args.port))
+
         
     def send_command(self, cmd, param=None):
         cmd = str(cmd)
