@@ -91,7 +91,8 @@ def setup_logger(args):
     logger.setLevel(numeric_level)
 
     # create formatter
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s",
+                                  "%y-%m-%d %H:%M:%S")
     
     # create console handler
     ch = logging.StreamHandler()

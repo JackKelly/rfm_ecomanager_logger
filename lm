@@ -187,6 +187,7 @@ case "$1" in # switch on the first command
 
 "start")
 	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
+	sleep 1
 	start_process "$BABYSITTER_DIR" "babysitter/babysitter.py" "babysitter.py"
 	;;
 
@@ -214,7 +215,7 @@ case "$1" in # switch on the first command
 
 "data")
 	echo "Displaying data.  Press CTRL-C to stop..."
-	dat="$RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/data/*.dat"
+	dat="$DATA_DIR/*/*.dat"
 	echo $dat
 	tail -f $dat
 	;;
