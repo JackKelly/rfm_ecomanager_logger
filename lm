@@ -219,15 +219,21 @@ case "$1" in # switch on the first command
 	echo $dat
 	tail -f $dat
 	;;
+	
+"edit")
+    echo "Editing radioIDs.dat..."
+    $RFM_ECOMANAGER_LOGGER/rfm_ecomanager_logger/rfm_ecomanager_logger.py --edit
+    ;;
 
 *)
-	echo -e "Usage: 'lm {update|flash|start|stop|check|data}'\n"
+	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data}'\n"
 	echo -e "Typical usage pattern:"
-	echo -e "  1) Start logging using 'lm start'"
-	echo -e "  2) Check that the logging processes really are running with 'lm check'"
-	echo -e "  3) Check that data are coming in using 'lm data'"
-	echo -e "  4) Then, when you've finished logging, use 'lm stop'"
-	echo -e "  5) Update the Nanode's flash with the latest code using 'lm flash'\n"
+	echo -e "  1) Teach the logging system about your sensors using 'lm edit'"
+	echo -e "  2) Start logging using 'lm start'"
+	echo -e "  3) Check that the logging processes really are running with 'lm check'"
+	echo -e "  4) Check that data are coming in using 'lm data'"
+	echo -e "  5) Then, when you've finished logging, use 'lm stop'"
+	echo -e "  6) Update the Nanode's flash with the latest code using 'lm flash'\n"
 	exit 1
 	;;
 
