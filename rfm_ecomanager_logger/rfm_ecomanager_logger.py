@@ -102,7 +102,7 @@ def setup_logger(args):
     
     # create file handler
     logfile = os.path.dirname(os.path.realpath(__file__)) + "/../rfm_ecomanager_logger.log"     
-    fh = logging.handlers.RotatingFileHandler(logfile, maxBytes=1E6, backupCount=5)
+    fh = logging.handlers.RotatingFileHandler(logfile, maxBytes=1E7, backupCount=20)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)

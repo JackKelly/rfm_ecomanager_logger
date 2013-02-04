@@ -186,12 +186,9 @@ class Nanode(object):
             return None
     
     def _readjson(self, retries=MAX_RETRIES):
-        json_line = None
         line = self._readline(retries=retries)
         if line and line[0] == "{":
-            json_line = json.loads(line)
-        return json_line
-        
+            return json.loads(line)
         
     def _readline_with_exception_handling(self):
         """Wrap serial.readline() with exception handling."""
@@ -206,7 +203,7 @@ class Nanode(object):
                 return ""
             else:
                 raise
-        except serial.SerialException, e:
+        except serial.SerialException:
             log.exception("")
             log.info("Attempting to restart serial connection and Nanode:")
             self._serial.close()
@@ -214,7 +211,7 @@ class Nanode(object):
             self._open_port()
             log.info("Up and running again.")
             raise NanodeRestart()
-        except serial.serialutil.SerialException, e:
+        except serial.serialutil.SerialException:
             log.critical("Is the Nanode plugged into port {}?".format(self.args.port))
             sys.exit(1)
         else:
@@ -234,22 +231,22 @@ class Nanode(object):
                                    "Attaching interrupt", 
                                    "Interrupt attached", 
                                    "Finished init"]
-                    nanode_restart = False
-                    log.info("Nanode startup sequence detected.")
+                    nanode_init_complete = False
+                    log.info("Start of Nanode init sequence detected.")
                     for startup_line in startup_seq:
                         time.sleep(1)
                         line = self._readline_with_exception_handling()
                         log.info("Nanode: {}".format(line))
                         if line == startup_line:
-                            nanode_restart = True
+                            nanode_init_complete = True
                         else:
-                            log.info("Nanode crash detected. Attempting serial restart")
+                            log.info("Nanode crashed during startup. Attempting serial restart")
                             self._serial.close()
                             self._open_port()
-                            nanode_restart = False
+                            nanode_init_complete = False
                             break
                         
-                    if nanode_restart:
+                    if nanode_init_complete:
                         log.info("Nanode has finished initialising")
                         raise NanodeRestart()
 
@@ -257,7 +254,9 @@ class Nanode(object):
                     continue
                 else: # line is something we should return              
                     return line
-        return line
+
+        if not self.abort:
+            raise NanodeTooManyRetries("Nanode::_readline() Failed after multiple retries.")
     
     def _throw_exception_if_too_many_retries(self, retries):
         if retries == Nanode.MAX_RETRIES:
@@ -270,7 +269,7 @@ class Nanode(object):
             self._serial = serial.Serial(port=self.args.port, 
                                          baudrate=115200,
                                          timeout=1) # timeout in seconds
-        except serial.serialutil.SerialException, e:
+        except serial.serialutil.SerialException:
             log.critical("Is the Nanode plugged into port {}?".format(self.args.port))
             sys.exit(1)
         else:
@@ -311,6 +310,6 @@ class Nanode(object):
     def __enter__(self):
         return self  
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _type, value, traceback):
         log.debug("Nanode __exit__")
         self._serial.close()

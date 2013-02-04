@@ -87,7 +87,7 @@ class Manager(object):
     def run_logging(self):
         log.info("Running logging mode. Press CTRL+C to exit.")
         while not self.abort:
-            data = self._read_sensor_data(retries=1000)
+            data = self._read_sensor_data(retries=120)
             if data:
                 if data.tx_id in self.transmitters:
                     self.transmitters[data.tx_id] \
