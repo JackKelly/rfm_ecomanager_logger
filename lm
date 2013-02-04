@@ -215,9 +215,13 @@ case "$1" in # switch on the first command
 
 "data")
 	echo "Displaying data.  Press CTRL-C to stop..."
-	dat="$DATA_DIR/*/*.dat"
-	echo $dat
-	tail -f $dat
+	dirs=($(ls $DATA_DIR))
+	dirs_length=${#dirs[@]} # length of array `dirs`
+	last_element_num=$((dirs_length - 1))
+	last_dir="$DATA_DIR/${dirs[$last_element_num]}"
+	echo "Using directory $last_dir"
+	echo ""
+	tail -f $last_dir/*.dat
 	;;
 	
 "edit")
