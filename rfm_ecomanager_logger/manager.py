@@ -24,6 +24,7 @@ class Manager(object):
         self.nanode = nanode
         self.args = args
         self.abort = False
+        self._require_pair_request = True        
 
         # if radioIDs.pkl exists then open it and load data, tell Nanode
         # how many TXs and TRXs there are and then inform Nanode of
@@ -33,7 +34,6 @@ class Manager(object):
         except:
             if self.args.edit:
                 self.transmitters = {}
-                self._require_pair_request = True
             else:
                 sys.exit("{:s} file not found. Please run with --edit command line option"
                   " to train the system before logging data.".format(Manager.PICKLE_FILE))
