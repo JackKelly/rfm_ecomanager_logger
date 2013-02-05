@@ -257,8 +257,8 @@ class Manager(object):
         WAIT_TIME = 30
         print("Listening for transmitters for", WAIT_TIME, "seconds (press CTRL-C to abort)...")
         end_time = time.time() + WAIT_TIME
-        success = False
-        while time.time() < end_time and not success:
+        heard_tx = False
+        while time.time() < end_time and not heard_tx:
             try:
                 data = self._read_sensor_data(retries=0)
             except NanodeTooManyRetries:
@@ -269,7 +269,7 @@ class Manager(object):
                         if self._user_accepts_pairing(data):
                             print("Pairing with transmitter...")
                             self._handle_pair_request(data)
-                            success = True
+                            heard_tx = True
                     elif data.tx_id not in self.transmitters:
                         if self._user_accepts_pairing(data):
                             print("Adding transmitter...")
@@ -277,9 +277,9 @@ class Manager(object):
                             self.transmitters[data.tx_id].add_to_nanode()
                             self.transmitters[data.tx_id].update_name(data.sensors)
                             self._pickle()
-                            success = True
+                            heard_tx = True
                     
-        if not success:
+        if not heard_tx:
             print("No transmitter heard")
 
     def _handle_pair_request(self, data):
