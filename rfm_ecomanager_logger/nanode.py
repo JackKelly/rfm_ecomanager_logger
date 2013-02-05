@@ -74,8 +74,8 @@ class Nanode(object):
             try:
                 self._last_nanode_time = self._get_nanode_time()[1]
                 self._set_time_offset()
-            except NanodeDataWaiting, e:
-                log.debug(e)
+            except NanodeDataWaiting:
+                pass
             else:
                 break
     
@@ -150,41 +150,76 @@ class Nanode(object):
                 Nanode's time
         
         Raises:
-            NanodeDataWaiting: Data is available on the serial port,
-                caller must empty input buffer and retry.
+            NanodeDataWaiting: If data is available on the serial port,
+                then a NanodeDataWaiting object is returned, containing
+                either an empty string or a line of data from the Nanode.
         """        
         retries = 0
         log.debug("_get_nanode_time()")
         while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
-            n_waiting = self._serial.inWaiting() # check if any data is waiting for us
+            
+            # check if any data is waiting for us
+            n_waiting = self._serial.inWaiting() 
             if n_waiting > 0:
-                raise NanodeDataWaiting("{} chars waiting".format(n_waiting))
+                log.debug("{} chars waiting".format(n_waiting))
+                raise NanodeDataWaiting()
+            
+            # ask Nanode for its time and also record the round-trip time
             start_time = time.time()
             self._serial.write("t")
             nanode_time = self._readline()
             end_time = time.time()
-            latency = end_time - start_time
-            log.debug("nanode_time= {}, latency = {}".format(nanode_time, latency))
-            
-            if latency > Nanode.MAX_ACCEPTABLE_LATENCY:
-                log.debug("Latency {} too high".format(latency))
-                nanode_time = None
-                continue            
 
             try:
                 nanode_time = int(nanode_time)
             except:
+                # The returned line is not an int so is probably a data line
+                # so pass this line back to the caller so the caller can
+                # either process this data or discard it.
                 log.debug("Failed to convert {} to an int.".format(nanode_time))
-                nanode_time = None
-                continue
-            else:
-                break
-        
+                raise NanodeDataWaiting(nanode_time) # pass this non-int text up to caller
+            else:            
+                latency = end_time - start_time
+                log.debug("nanode_time= {}, latency = {}".format(nanode_time, latency))
+                
+                if latency < Nanode.MAX_ACCEPTABLE_LATENCY:
+                    break # we're done
+                else:
+                    log.debug("Latency {} too high".format(latency))
+                    nanode_time = None
+                    # try again
+
         return start_time, nanode_time, end_time
     
-    def read_sensor_data(self, retries=MAX_RETRIES):           
-        json_line = self._readjson(retries=retries)
+    def read_sensor_data(self, retries=MAX_RETRIES):   
+        line = None
+        json_line = None        
+        # Decide if we need to update self._time_offset
+        if time.time() > self._deadline_to_update_time_offset:
+            log.debug("Time to update _time_offset")
+            try:
+                self._set_time_offset()
+            except NanodeDataWaiting, e:
+                # If a NanodeDataWaiting exception is thrown then this may be
+                # because sensor data arrived from the Nanode
+                # when the set_time_offset function read the serial port.
+                # Hence we should process this data if it is valid JSON.
+                log.debug(e)
+                log.debug("Data is waiting so won't update time on this cycle")
+                line = str(e)
+
+        if not line:
+            # If json hasn't already been loaded from the NanodeDataWaiting
+            # exception then load it from the serial port
+            line = self._readline(retries=retries)
+            
+        if line and isinstance(line, basestring) and line[0]=="{":
+            try:
+                json_line = json.loads(line)
+            except:
+                json_line = None
+        
         if json_line:
             log.debug("LINE: {}".format(json_line))
             t = time.time()
@@ -206,16 +241,13 @@ class Nanode(object):
                 # Handle time
                 nanode_time = json_line.get("t")
                 
-                # Decide if we need to update self._time_offset
-                if time.time() > self._deadline_to_update_time_offset or \
-                  nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
-                    log.debug("Time to update _time_offset")
-                    try:
-                        self._set_time_offset()
-                    except NanodeDataWaiting, e:
-                        log.debug(e)
-                        log.debug("Data is waiting so won't update time on this cycle")
-                        
+                if nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
+                    log.info("Roll-over detected")
+                    # nanode's time is a uint32:
+                    nanode_time += 2**32
+                    # ensure we update time offset on next cycle:
+                    self._deadline_to_update_time_offset = time.time() 
+                
                 self._last_nanode_time = nanode_time
                 
                 data.timecode = self._time_offset + (nanode_time / 1000)
@@ -229,14 +261,8 @@ class Nanode(object):
             data.tx_type  = json_line.get("type")
             data.state    = json_line.get("state")
             return data
-        else:
-            return None
-    
-    def _readjson(self, retries=MAX_RETRIES):
-        line = self._readline(retries=retries)
-        if line and line[0] == "{":
-            return json.loads(line)
-        
+
+           
     def _readline_with_exception_handling(self):
         """Wrap serial.readline() with exception handling."""
         try:
