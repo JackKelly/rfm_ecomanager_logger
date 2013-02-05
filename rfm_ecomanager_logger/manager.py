@@ -255,25 +255,29 @@ class Manager(object):
     def _listen_for_new_tx(self):
         self.nanode.clear_serial()
         WAIT_TIME = 30
-        print("Listening for transmitters for 30 seconds (press CTRL-C to abort)...")
+        print("Listening for transmitters for", WAIT_TIME, "seconds (press CTRL-C to abort)...")
         end_time = time.time() + WAIT_TIME
         success = False
         while time.time() < end_time and not success:
-            data = self._read_sensor_data(retries=0)
-            if data:
-                if data.is_pairing_request:
-                    if self._user_accepts_pairing(data):
-                        print("Pairing with transmitter...")
-                        self._handle_pair_request(data)
-                        success = True
-                elif data.tx_id not in self.transmitters:
-                    if self._user_accepts_pairing(data):
-                        print("Adding transmitter...")
-                        self._add_transmitter(data.tx_id, data.tx_type)
-                        self.transmitters[data.tx_id].add_to_nanode()
-                        self.transmitters[data.tx_id].update_name(data.sensors)
-                        self._pickle()
-                        success = True
+            try:
+                data = self._read_sensor_data(retries=0)
+            except NanodeTooManyRetries:
+                pass
+            else:
+                if data:
+                    if data.is_pairing_request:
+                        if self._user_accepts_pairing(data):
+                            print("Pairing with transmitter...")
+                            self._handle_pair_request(data)
+                            success = True
+                    elif data.tx_id not in self.transmitters:
+                        if self._user_accepts_pairing(data):
+                            print("Adding transmitter...")
+                            self._add_transmitter(data.tx_id, data.tx_type)
+                            self.transmitters[data.tx_id].add_to_nanode()
+                            self.transmitters[data.tx_id].update_name(data.sensors)
+                            self._pickle()
+                            success = True
                     
         if not success:
             print("No transmitter heard")
