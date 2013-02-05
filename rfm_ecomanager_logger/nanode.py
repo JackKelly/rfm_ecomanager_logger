@@ -89,6 +89,7 @@ class Nanode(object):
         """
         
         retries = 0
+        log.debug("_set_time_offset()")
         while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
             start_time, nanode_time, end_time = self._get_nanode_time() # don't catch NanodeDataWaiting exception
@@ -153,6 +154,7 @@ class Nanode(object):
                 caller must empty input buffer and retry.
         """        
         retries = 0
+        log.debug("_get_nanode_time()")
         while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
             n_waiting = self._serial.inWaiting() # check if any data is waiting for us
@@ -163,7 +165,7 @@ class Nanode(object):
             nanode_time = self._readline()
             end_time = time.time()
             latency = end_time - start_time
-            log.debug("latency = {}".format(latency))
+            log.debug("nanode_time= {}, latency = {}".format(nanode_time, latency))
             
             if latency > Nanode.MAX_ACCEPTABLE_LATENCY:
                 log.debug("Latency {} too high".format(latency))
@@ -207,7 +209,7 @@ class Nanode(object):
                 # Decide if we need to update self._time_offset
                 if time.time() > self._deadline_to_update_time_offset or \
                   nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
-                    
+                    log.debug("Time to update _time_offset")
                     try:
                         self._set_time_offset()
                     except NanodeDataWaiting, e:
