@@ -22,15 +22,18 @@ class Transmitter(object):
     def accept_pair_request(self):
         print("Pairing with", self.id)
         self.manager.nanode.send_command("p", self.id)
-        retries = 0
+        retries_left = 5
         success = False
-        while retries < 5 and not success:
-            retries += 1
+        while retries_left > 0 and not success:
+            retries_left -= 1
             data = self.manager.nanode.read_sensor_data()
             if data.pair_ack and data.tx_id == self.id:
                 print("Successfully paired with", self.id)
                 self.update_name()
                 success = True
+            else:
+                print("Failed to pair with", self.id, "Retries left =", retries_left)
+                
         if not success:
             raise TransmitterError("Failed to pair with {}".format(self.id))            
     
