@@ -18,6 +18,9 @@ class NanodeRestart(NanodeError):
 class NanodeTooManyRetries(NanodeError):
     """Nanode has restarted."""
     
+class NanodeDataWaiting(NanodeError):
+    """Data is waiting yet this function needs a clear input buffer.
+    Caller must read and process data or flushInput before calling this function again"""
 
 class Data(object):
     """Struct for storing data from Nanode"""
@@ -45,7 +48,7 @@ class Nanode(object):
         retries = 2
         while retries > 0 and not self.abort:
             retries -= 1
-            self.clear_serial()
+            self._serial.flushInput()
             self._serial.write("\r")
             
             # Turn off LOGGING on the Nanode if necessary
@@ -59,18 +62,38 @@ class Nanode(object):
             # Other Nanode config commands...
             self.send_command("m") # manual pairing mode
             self.send_command("k") # Only print data from known transmitters
-            self._time_offset = None                    
-            self._last_nanode_time = self._get_nanode_time()[1]
-            self._set_time_offset()
+            self._time_offset = None
             break
+        
+        # Set time offset
+        retries = 5
+        while retries > 0 and not self.abort:
+            retries -= 1
+            log.debug("Setting _last_nanode_time and _time_offset for first time. Retries left={}".format(retries))
+            self._serial.flushInput()            
+            try:
+                self._last_nanode_time = self._get_nanode_time()[1]
+                self._set_time_offset()
+            except NanodeDataWaiting, e:
+                log.debug(e)
+            else:
+                break
     
     def _set_time_offset(self):
+        """
+        Returns nothing but sets self._last_nanode_time if successful.
+        
+        Raises:
+                NanodeDataWaiting: Data is available on the serial port,
+                caller must empty input buffer and retry.
+        """
+        
         retries = 0
         while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
-            start_time, nanode_time, end_time = self._get_nanode_time()
+            start_time, nanode_time, end_time = self._get_nanode_time() # don't catch NanodeDataWaiting exception
             if nanode_time:
-                # Nanode sends time 10ms after receipt ocf the 't' command
+                # Nanode sends time 10ms after receipt of the 't' command
                 new_time_offset = end_time - (nanode_time / 1000)
                 
                 # Detect rollover
@@ -108,14 +131,33 @@ class Nanode(object):
                 self._deadline_to_update_time_offset = start_time + \
                                      Nanode.TIME_OFFSET_UPDATE_PERIOD
                 break
+
         if nanode_time:
             self._last_nanode_time = nanode_time
     
     def _get_nanode_time(self):
+        """
+        Asks the Nanode for the number of milliseconds since it started.
+        
+        Returns:
+            start_time (float): UNIX time immediately before asking Nanode 
+                for its time
+                
+            nanode_time (int): Number of milliseconds since Nanode started
+            
+            end_time (float): UNIX time immediately after receiving 
+                Nanode's time
+        
+        Raises:
+            NanodeDataWaiting: Data is available on the serial port,
+                caller must empty input buffer and retry.
+        """        
         retries = 0
         while retries < Nanode.MAX_RETRIES and not self.abort:
             retries += 1
-            self._serial.flushInput()
+            n_waiting = self._serial.inWaiting() # check if any data is waiting for us
+            if n_waiting > 0:
+                raise NanodeDataWaiting("{} chars waiting".format(n_waiting))
             start_time = time.time()
             self._serial.write("t")
             nanode_time = self._readline()
@@ -139,9 +181,6 @@ class Nanode(object):
         
         return start_time, nanode_time, end_time
     
-    def clear_serial(self):
-        self._serial.flushInput()
-    
     def read_sensor_data(self, retries=MAX_RETRIES):           
         json_line = self._readjson(retries=retries)
         if json_line:
@@ -164,11 +203,17 @@ class Nanode(object):
             else:
                 # Handle time
                 nanode_time = json_line.get("t")
-                if self._deadline_to_update_time_offset < time.time():
-                    self._set_time_offset()
-                elif nanode_time < self._last_nanode_time: # roll-over of Nanode's clock  
-                    self._set_time_offset()
                 
+                # Decide if we need to update self._time_offset
+                if time.time() > self._deadline_to_update_time_offset or \
+                  nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
+                    
+                    try:
+                        self._set_time_offset()
+                    except NanodeDataWaiting, e:
+                        log.debug(e)
+                        log.debug("Data is waiting so won't update time on this cycle")
+                        
                 self._last_nanode_time = nanode_time
                 
                 data.timecode = self._time_offset + (nanode_time / 1000)
