@@ -41,13 +41,15 @@ class Manager(object):
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
 
+            if not args.edit:
+                self._pre_process_data_directory()
+                self._create_labels_file()
+
             for dummy, tx in self.transmitters.iteritems():
                 tx.unpickle(self)
             
             self._tell_nanode_about_transmitters()
-            
-            self._create_labels_file()
-            
+                        
     def _create_labels_file(self):
         log_chans = []
         for dummy, tx in self.transmitters.iteritems():
@@ -60,6 +62,51 @@ class Manager(object):
             for log_chan, name in log_chans:
                 labels_file.write("{:d} {:s}\n".format(log_chan, name))
             
+    def _pre_process_data_directory(self):
+        """If args.data_directory is set then correctly format it.
+        If args.data_directory is not set then check if $DATA_DIR is set.
+        If $DATA_DIR is set then use that as the base directory and add 
+        a numerically-named subdirectory (i.e. $DATA_DIR/XYZ)
+        Create a new directory if necessary.
+        """
+        
+        if self.args.data_directory:
+            # append trailing slash to data_directory if necessary
+            self.args.data_directory = os.path.realpath(self.args.data_directory)
+                
+            # if directory doesn't exist then create it
+            if not os.path.isdir(self.args.data_directory):
+                if os.path.exists(self.args.data_directory):
+                    log.critical("The path specified as the data directory '{}' "
+                                  "is not a directory but is a file. Please try again."
+                                  .format(self.args.data_directory))
+                    sys.exit(1)
+                else:
+                    os.makedirs(self.args.data_directory)
+        else: # use default for self.args.data_directory
+            data_dir = os.environ.get("DATA_DIR") 
+            if data_dir:
+                data_dir = os.path.realpath(data_dir)
+                new_subdir_number = 0
+                if os.path.isdir(data_dir):
+                    # Get just the names of the directories within data_dir
+                    # Taken from http://stackoverflow.com/a/142535/732596
+                    existing_subdirs = os.walk(data_dir).next()[1]
+                    existing_subdirs.sort()
+                    try:
+                        new_subdir_number = int(existing_subdirs[-1]) + 1
+                    except:
+                        pass # use default new_subdir_number
+                        
+                new_subdir_name = "{:03d}".format(new_subdir_number)
+                self.args.data_directory = data_dir + "/" + new_subdir_name
+                log.info("Creating data directory {}".format(self.args.data_directory))
+                os.makedirs(self.args.data_directory)
+                    
+            else:
+                log.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
+                sys.exit(1)
+
     def _tell_nanode_about_transmitters(self):
         self.nanode.send_command("d") # delete all TXs
         self.nanode.send_command("D") # delete all TRXs        

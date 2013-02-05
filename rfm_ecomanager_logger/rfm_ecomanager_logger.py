@@ -37,49 +37,6 @@ def setup_argparser():
     
     return parser.parse_args()
 
-
-def pre_process_data_directory(args):
-
-    if args.data_directory:
-        # append trailing slash to data_directory if necessary
-        args.data_directory = os.path.realpath(args.data_directory)
-            
-        # if directory doesn't exist then create it
-        if not os.path.isdir(args.data_directory):
-            if os.path.exists(args.data_directory):
-                log.critical("The path specified as the data directory '{}' "
-                              "is not a directory but is a file. Please try again."
-                              .format(args.data_directory))
-                sys.exit(1)
-            else:
-                os.makedirs(args.data_directory)
-    else: # use default for args.data_directory
-        data_dir = os.environ.get("DATA_DIR") 
-        if data_dir:
-            data_dir = os.path.realpath(data_dir)
-            new_subdir_number = 0
-            if os.path.isdir(data_dir):
-                # Get just the names of the directories within data_dir
-                # Taken from http://stackoverflow.com/a/142535/732596
-                existing_subdirs = os.walk(data_dir).next()[1]
-                existing_subdirs.sort()
-                try:
-                    new_subdir_number = int(existing_subdirs[-1]) + 1
-                except:
-                    pass # use default new_subdir_number
-                    
-            new_subdir_name = "{:03d}".format(new_subdir_number)
-            args.data_directory = data_dir + "/" + new_subdir_name
-            log.info("Creating data directory {}".format(args.data_directory))
-            os.makedirs(args.data_directory)
-                
-        else:
-            log.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
-            sys.exit(1)
-
-    return args
-
-
 def setup_logger(args):
     # Process command line log level
     numeric_level = getattr(logging, args.loglevel.upper(), None)
@@ -116,7 +73,7 @@ def main():
     
     setup_logger(args)
     
-    args = pre_process_data_directory(args)
+    log.info("Please wait for Nanode to initialise...")
     
     try:
         with Nanode(args) as nanode:
@@ -129,6 +86,8 @@ def main():
                 # register SIGINT and SIGTERM handler
                 sig_handler = sighandler.SigHandler()
                 sig_handler.add_objects_to_stop([nanode, manager])
+                                
+                # start logging
                 manager.run_logging()
     except SystemExit:
         pass
