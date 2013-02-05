@@ -134,13 +134,28 @@ class Manager(object):
     def run_logging(self):
         log.info("Running logging mode. Press CTRL+C to exit.")
         while not self.abort:
-            data = self._read_sensor_data(retries=120)
-            if data:
-                if data.tx_id in self.transmitters:
-                    self.transmitters[data.tx_id] \
-                        .new_reading(data)
+            try:
+                data = self._read_sensor_data(retries=7)
+            except NanodeTooManyRetries, e:
+                log.error(e)
+                log.error("The Nanode has probably crashed. Check for sure by attempting to get time from Nanode.")
+                if self.nanode._get_nanode_time() is None:
+                    log.error("Nanode isn't responded so attempting to restart.")
+                    # Nanode must have crashed so try to restart
+                    self.nanode._serial.close()
+                    self.nanode._open_port()
+                    self.nanode.init_nanode()
+                    self._tell_nanode_about_transmitters()
+                    log.info("Nanode restarted")
                 else:
-                    log.error("Unknown TX: {}".format(data.tx_id))
+                    log.info("Nanode responded to time check.")
+            else:
+                if data:
+                    if data.tx_id in self.transmitters:
+                        self.transmitters[data.tx_id] \
+                            .new_reading(data)
+                    else:
+                        log.error("Unknown TX: {}".format(data.tx_id))
 
     def _read_sensor_data(self, retries=Nanode.MAX_RETRIES):
         while True:
@@ -255,10 +270,13 @@ class Manager(object):
     def _listen_for_new_tx(self):
         self.nanode.clear_serial()
         WAIT_TIME = 30
-        print("Listening for transmitters for", WAIT_TIME, "seconds (press CTRL-C to abort)...")
-        end_time = time.time() + WAIT_TIME
+        END_TIME = int(round(time.time())) + WAIT_TIME
         heard_tx = False
-        while time.time() < end_time and not heard_tx:
+        print("")
+        while time.time() < END_TIME and not heard_tx:
+            seconds_left = END_TIME - int(round(time.time()))
+            sys.stdout.write("\x1b[A") # Move the cursor up one line (from stealth-x.com/articles/python-code-tricks.php)
+            print("Listening for transmitters for", seconds_left, "seconds (press CTRL-C to abort)...")
             try:
                 data = self._read_sensor_data(retries=0)
             except NanodeTooManyRetries:
