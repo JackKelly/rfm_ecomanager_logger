@@ -20,7 +20,8 @@ class NanodeTooManyRetries(NanodeError):
     
 class NanodeDataWaiting(NanodeError):
     """Data is waiting yet this function needs a clear input buffer.
-    Caller must read and process data or flushInput before calling this function again"""
+    Caller must read and process data or flushInput before calling this function again.
+    The NanodeDataWaiting object may contain a line of data."""
 
 class Data(object):
     """Struct for storing data from Nanode"""
@@ -30,7 +31,7 @@ class Nanode(object):
     """Used to manage a Nanode running the rfm_edf_ecomanager code."""
     
     MAX_RETRIES = 20
-    MAX_ACCEPTABLE_LATENCY = 0.015 # in seconds
+    MAX_ACCEPTABLE_LATENCY = 0.2 # in seconds
     TIME_OFFSET_UPDATE_PERIOD = 60*10 # in seconds
     MAX_ACCEPTABLE_DRIFT = 0.5 # in seconds
     
@@ -95,7 +96,7 @@ class Nanode(object):
             start_time, nanode_time, end_time = self._get_nanode_time() # don't catch NanodeDataWaiting exception
             if nanode_time:
                 # Nanode sends time 10ms after receipt of the 't' command
-                new_time_offset = end_time - (nanode_time / 1000)
+                new_time_offset = ((start_time + end_time) / 2) - (nanode_time / 1000)
                 
                 # Detect rollover
                 if nanode_time < self._last_nanode_time:
