@@ -13,8 +13,10 @@ class Manager(object):
     """ 
     Attributes:
       - nanode (Nanode)
-      - transmitters  (dict of Transmitters)
+      - transmitters (dict of Transmitters)
       - args
+      - abort (boolean)
+      - _require_pair_request (boolean)
       
     """
     
