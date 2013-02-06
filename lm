@@ -54,7 +54,7 @@ check_directory ()
 start_process ()
 # Arguments: 1) directory, 2) file within directory, 3) process name
 {
-    # TODO: check if they're already running
+    echo -e "==================="
     echo -e "\nStarting $1/$2..."
 
     # Check if it's already running
@@ -79,10 +79,9 @@ start_process ()
     then
 	echo "Successfully started $1/$2"
     else
-	print_error "ERROR: Failed to start $1/$2"
+	print_error "ERROR **** FAILED TO START $1/$2 **********"
 	tail nohup.out >/dev/stderr
 	echo ""
-	exit 1
     fi
 }
 
@@ -107,6 +106,7 @@ wait_for_process_to_die ()
 kill_process ()
 # Arguments: 1) process name
 {
+    echo -e "\n====================\n"
     pgrep "$1" > /dev/null
     if [ $? -eq 0 ]
     then
@@ -188,20 +188,21 @@ case "$1" in # switch on the first command
 "start")
 	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
 	sleep 1
-	start_process "$BABYSITTER_DIR" "babysitter/babysitter.py" "babysitter.py"
+	start_process "$BABYSITTER_DIR" "power_babysitter.py" "power_babysitte"
 	;;
 
 "stop")
 	echo "Stop logging"
-	kill_process "babysitter.py"
+	kill_process "power_babysitte"
 	kill_process "rfm_ecomanager_"
 	;;
 
 "check")
-	echo "Checking whether rfm_ecomanager_logger and babysitter are running..."
-	for name in "rfm_ecomanager_" "babysitter.py"
+	echo "Checking whether rfm_ecomanager_logger and power_babysitter are running..."
+	for name in "rfm_ecomanager_" "power_babysitte"
 	do
-	    echo -e "\nChecking $name..."
+        echo -e "\n==================="	
+	    echo -e "Checking $name..."
 	    ps -A | grep "$name"
 	    pgrep "$name" > /dev/null
 	    if [ $? -eq 0 ]
