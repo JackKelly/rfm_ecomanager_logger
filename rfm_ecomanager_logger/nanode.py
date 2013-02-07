@@ -38,6 +38,7 @@ class Nanode(object):
     def __init__(self, args):
         self.abort = False        
         self.args = args
+        self._deadline_to_update_time_offset = 0        
         self._open_port()
         try:
             self.init_nanode()
