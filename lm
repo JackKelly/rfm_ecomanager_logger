@@ -4,18 +4,8 @@
 # -------------
 #
 # The following environment variables must be set:
-#   RFM_ECOMANAGER_LOGGER_DIR
-#   POWERSTATS_DIR
-#   BABYSITTER_DIR
-#   RFM_EDF_ECOMANAGER_DIR
+#   LOGGER_BASE_DIR
 #   DATA_DIR
-
-
-name[0]="RFM_ECOMANAGER_LOGGER"
-name[1]="POWERSTATS"
-name[2]="BABYSITTER"
-
-length=${#name[@]} # length of array `name`
 
 print_error()
 {
@@ -33,18 +23,16 @@ check_return_value ()
 
 
 check_directory ()
-# Arguments: 1) path 2) variable name
+# Arguments: 1) path
 {
-    if [ -z "$1" ]
+    if [ -z "$1" ] # -z true if length of string is zero
     then
-	print_error "\n* ERROR: \$$2 directory is not set!\n"
+	print_error "\n* ERROR: $1 Path is an empty string!\n"
 	exit 1
     else
-	if [ -d "$1" ]
+	if [ ! -d "$1" ] # -d true if file exists and is a directory
 	then
-	    echo "* \$$2 set to $1 which is a valid directory"
-	else
-	    print_error "\n* ERROR: \$$2 set to $1 WHICH IS NOT A DIRECTORY\n"
+	    print_error "\n* ERROR: $1 IS NOT A DIRECTORY\n"
 	    exit 1
 	fi
     fi    
@@ -138,15 +126,25 @@ kill_process ()
 }
 
 echo ""
+
+name[0]="rfm_ecomanager_logger"
+name[1]="powerstats"
+name[2]="babysitter"
+name[3]="snd_card_power_meter"
+
+length=${#name[@]} # length of array `name`
+
 # create a `directory` array with the actual directories and sanity check
-echo "Running sanity checks..."
 for (( i=0; i<$length; i++ ))
 do
-    subst="${name[$i]}_DIR"
-    directory[$i]="${!subst}"
-    check_directory "${directory[$i]}" "${name[$i]}_DIR"
+    directory[$i]="${LOGGER_BASE_DIR}/${name[$i]}"
+    check_directory "${directory[$i]}"
 done
-echo -e "...all sanity checks passed!\n"
+
+RFM_ECOMANAGER_LOGGER_DIR="${directory[0]}"
+POWERSTATS_DIR="${directory[1]}"
+BABYSITTER_DIR="${directory[2]}"
+SND_CARD_POWER_METER="${directory[3]}"
 
 case "$1" in # switch on the first command
 
@@ -175,7 +173,6 @@ case "$1" in # switch on the first command
 	    echo "Good. rfm_ecomanager_logger is not running.  Continuing..."
 	fi
 
-	check_directory "$RFM_EDF_ECOMANAGER_DIR" "RFM_EDF_ECOMANAGER_DIR"
 	echo "First, updating code from github:"
 	cd "$RFM_EDF_ECOMANAGER_DIR" && git pull
 	check_return_value
@@ -215,6 +212,7 @@ case "$1" in # switch on the first command
 	;;
 
 "data")
+	check_directory "$DATA_DIR"
 	echo "Displaying data.  Press CTRL-C to stop..."
 	dirs=($(ls $DATA_DIR))
 	dirs_length=${#dirs[@]} # length of array `dirs`
