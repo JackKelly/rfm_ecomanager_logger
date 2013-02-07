@@ -270,7 +270,7 @@ class Manager(object):
         self.nanode.send_command("k" if self._require_pair_request else "u")
         
     def _listen_for_new_tx(self):
-        self.nanode.clear_serial()
+        self.nanode._serial.flushInput()
         WAIT_TIME = 30
         END_TIME = int(round(time.time())) + WAIT_TIME
         heard_tx = False
