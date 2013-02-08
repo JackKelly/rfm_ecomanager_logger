@@ -185,6 +185,17 @@ case "$1" in # switch on the first command
 "start")
 	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
 	sleep 1
+
+	echo "Checking the rfm_ecomanager_logger.py really is running..."
+	pgrep rfm_ecomanager_ > /dev/null
+	if [ $? -eq 0 ]
+	then
+	    echo "$name is running"
+	else
+	    print_error "ERROR $name FAILED TO START SO WILL NOT START BABYSITTER!\n"
+	    exit 1
+	fi	
+
 	start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
 	;;
 
