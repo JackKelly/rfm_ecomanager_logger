@@ -187,21 +187,13 @@ class Manager(object):
     
     def run_editing(self):
         self._list_transmitters()
+        self._print_editing_help()
         while True:
             print("")
             cmd = raw_input("Enter command (or ? for help): ")
             try:
                 if cmd == "?":
-                    print("")
-                    print("l      : list all known transmitters")
-                    print("t      : toggle require_pair_request mode (currently {})"
-                          .format("ON" if self._require_pair_request else "OFF"))
-                    print("n      : listen for new transmitter")
-                    print("m      : manually enter transmitter ID")
-                    print("<index>: edit known transmitter")
-                    print("d      : delete known transmitter")
-                    print("s      : switch TRX on or off")
-                    print("q      : quit")
+                    self._print_editing_help()
                 elif cmd == "l": self._list_transmitters()
                 elif cmd == "t": self._toggle_auto_pair()
                 elif cmd == "n":
@@ -219,12 +211,24 @@ class Manager(object):
                     print("Unrecognised command: '{}'\n".format(cmd))
             except Cancel, c:
                 print(c)
-
+                
+    def _print_editing_help(self):
+        print("\n=====  COMMANDS  =====\n")
+        print("l      : list all known transmitters")
+        print("t      : toggle require_pair_request mode (currently {})"
+              .format("ON" if self._require_pair_request else "OFF"))
+        print("n      : listen for new transmitter")
+        print("m      : manually enter transmitter ID")
+        print("<index>: edit known transmitter")
+        print("d      : delete known transmitter")
+        print("s      : switch TRX on or off")
+        print("q      : quit")
+        
     def _list_transmitters(self):
         if not self.transmitters:
             return
         
-        print("")
+        print("\n=====  KNOWN SENSORS  =====\n")
         print("{:5s}{:>12s}{:>6}{:>8}{:>5}{:>10}{:>20}"
               .format("INDEX", "RF_ID", "TYPE", "SENSOR", "IAM?", "LOG_CHAN", "NAME"))
         

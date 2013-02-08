@@ -235,7 +235,16 @@ case "$1" in # switch on the first command
 	
 "edit")
     echo "Editing radioIDs.dat..."
-    $RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/rfm_ecomanager_logger.py --edit
+    echo "Checking if rfm_ecomanager_logger is running..."
+    pgrep rfm_ecomanager_ > /dev/null
+    if [ $? -eq 0 ]
+    then
+	print_error "ERROR: rfm_ecomanager_logger is running. Please run 'lm stop' before 'lm edit'."
+	exit 1
+    else
+	echo "Good: rfm_ecomanager_logger isn't running... starting editing mode..."
+	$RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/rfm_ecomanager_logger.py --edit
+    fi
     ;;
     
 "log")
@@ -261,5 +270,3 @@ case "$1" in # switch on the first command
 
 esac # end of case
 
-
-echo -e "\nAll done\n"
