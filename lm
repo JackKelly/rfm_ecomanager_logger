@@ -114,6 +114,7 @@ kill_process ()
 		echo "Successfully killed $1"
 	    else
 		echo "ERROR: Failed to kill $1 using -s KILL"
+		echo "       Perhaps you don't have permission? Try using 'sudo lm stop'"
 	    fi
 	else
 	    echo "Successfull killed $1"
