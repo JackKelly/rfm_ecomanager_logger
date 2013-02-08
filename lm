@@ -183,7 +183,7 @@ case "$1" in # switch on the first command
 
 "start")
 	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
-	sleep 5 # wait for ecomanager to create directories after talking to Nanode
+	sleep 1
 
 	echo "Checking the rfm_ecomanager_logger.py really is running..."
 	pgrep rfm_ecomanager_ > /dev/null
