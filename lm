@@ -55,7 +55,6 @@ start_process ()
 
     # Start the process
     cd $1
-    rm nohup.out
     nohup $2 &
 
     # Pause for 1 second
