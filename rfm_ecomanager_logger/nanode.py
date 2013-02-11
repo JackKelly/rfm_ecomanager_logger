@@ -134,9 +134,6 @@ class Nanode(object):
                 self._deadline_to_update_time_offset = start_time + \
                                      Nanode.TIME_OFFSET_UPDATE_PERIOD
                 break
-
-        if nanode_time:
-            self._last_nanode_time = nanode_time
     
     def _get_nanode_time(self):
         """
