@@ -35,6 +35,10 @@ def setup_argparser():
                         const=False, default=True, 
                         help="Do not switch TRXs on if they are detected to be off.")
     
+    parser.add_argument('--no-time-correction', dest='time_correction', action='store_const',
+                        const=False, default=True, 
+                        help="Disable time correction and just use arrival time of packet on serial port")    
+    
     return parser.parse_args()
 
 def setup_logger(args):

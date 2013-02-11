@@ -65,21 +65,24 @@ class Nanode(object):
             self.send_command("m") # manual pairing mode
             self.send_command("k") # Only print data from known transmitters
             self._time_offset = None
+            self._last_nanode_time = 0
             break
         
         # Set time offset
-        retries = 5
-        while retries > 0 and not self.abort:
-            retries -= 1
-            log.debug("Setting _last_nanode_time and _time_offset for first time. Retries left={}".format(retries))
-            self._serial.flushInput()            
-            try:
-                self._last_nanode_time = self._get_nanode_time()[1]
-                self._set_time_offset()
-            except NanodeDataWaiting:
-                pass
-            else:
-                break
+        if self.args.time_correction:
+            retries = 5
+            while retries > 0 and not self.abort:
+                retries -= 1
+                log.debug("Setting _last_nanode_time and _time_offset for"
+                          " first time. Retries left={}".format(retries))
+                self._serial.flushInput()            
+                try:
+                    self._last_nanode_time = self._get_nanode_time()[1]
+                    self._set_time_offset()
+                except NanodeDataWaiting:
+                    pass
+                else:
+                    break
     
     def _set_time_offset(self):
         """
@@ -193,9 +196,11 @@ class Nanode(object):
     
     def read_sensor_data(self, retries=MAX_RETRIES):   
         line = None
-        json_line = None        
+        json_line = None
         # Decide if we need to update self._time_offset
-        if time.time() > self._deadline_to_update_time_offset:
+        if (self.args.time_correction and 
+            time.time() > self._deadline_to_update_time_offset):
+            
             log.debug("Time to update _time_offset")
             try:
                 self._set_time_offset()
@@ -209,19 +214,23 @@ class Nanode(object):
                 line = str(e)
 
         if not line:
-            # If json hasn't already been loaded from the NanodeDataWaiting
-            # exception then load it from the serial port
+            # If data hasn't already been loaded from the NanodeDataWaiting
+            # exception then read it from the serial port
             line = self._readline(retries=retries)
             
+        # Record time immediately after _readline returns.
+        t = time.time()
+            
+        # Convert string to JSON object
         if line and isinstance(line, basestring) and line[0]=="{":
             try:
                 json_line = json.loads(line)
             except:
                 json_line = None
         
+        # Process JSON object
         if json_line:
-            log.debug("LINE: {}".format(json_line))
-            t = time.time()
+            log.debug("LINE: {}".format(json_line))            
             data = Data()
             
             # Handle "pair with" responses
@@ -237,21 +246,25 @@ class Nanode(object):
             if data.is_pairing_request:
                 json_line = json_line.get("pr")
             else:
-                # Handle time
-                nanode_time = json_line.get("t")
+                # Handle time                
+                if self.args.time_correction:
+                    nanode_time = json_line.get("t")
+                    
+                    if nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
+                        log.info("Roll-over detected")
+                        # nanode's time is a uint32:
+                        nanode_time += 2**32
+                        # ensure we update time offset on next cycle:
+                        self._deadline_to_update_time_offset = time.time() 
+                    
+                    self._last_nanode_time = nanode_time
+                    
+                    data.timecode = self._time_offset + (nanode_time / 1000)
+                    log.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
+                          .format(data.timecode, t, data.timecode-t))
+                else:
+                    data.timecode = t
                 
-                if nanode_time < self._last_nanode_time: # roll-over of Nanode's clock
-                    log.info("Roll-over detected")
-                    # nanode's time is a uint32:
-                    nanode_time += 2**32
-                    # ensure we update time offset on next cycle:
-                    self._deadline_to_update_time_offset = time.time() 
-                
-                self._last_nanode_time = nanode_time
-                
-                data.timecode = self._time_offset + (nanode_time / 1000)
-                log.debug("ETA={:.3f}, time received={:.3f}, diff={:.3f}"
-                      .format(data.timecode, t, data.timecode-t))           
                 data.timecode = int(round(data.timecode))
                 
                 data.sensors  = json_line.get("sensors")

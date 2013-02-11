@@ -1,9 +1,14 @@
 from __future__ import print_function
 from input_with_cancel import input_with_cancel, input_int_with_cancel, yes_no_cancel
+import logging
+log = logging.getLogger("rfm_ecomanager_logger")
 
-MAX_POWER_FOR_AGG_CHAN = 10000
+MAX_POWER_FOR_AGG_CHAN = 20000
 MAX_POWER_FOR_IAM_CHAN =  3200
-MIN_SAMPLE_PERIOD = 3 # ignore samples which arrive closer than this
+
+# ignore a sample which arrives less than
+# this number of seconds after previous recorded sample 
+MIN_SAMPLE_PERIOD = 3
 
 class Sensor(object):
     """Each Transmitter can have 1 to 3 Sensors."""
@@ -51,25 +56,38 @@ class Sensor(object):
                         "/channel_{:d}.dat".format(self.log_chan)
                         
     def log_data_to_disk(self, timecode, watts):
+        log.debug("log_data_to_disk {} {} {} {}"
+                  .format(self.filename, self.name, timecode, watts))
+
         if self.log_chan == 0:
+            log.debug("Not logging to disk because log_chan == 0")
             return
         
+        # Filter insanely high values (these are almost certainly measurement errors)
         if self.agg_chan:
             if watts > MAX_POWER_FOR_AGG_CHAN:
+                log.debug("Not logging to disk because watts {} >"
+                          " MAX_POWER_FOR_AGG_CHAN {}"
+                          .format(watts, MAX_POWER_FOR_AGG_CHAN))
                 return
         else: # IAM channel
             if watts > MAX_POWER_FOR_IAM_CHAN:
+                log.debug("Not logging to disk because watts {} >"
+                          " MAX_POWER_FOR_IAM_CHAN {}"
+                          .format(watts, MAX_POWER_FOR_IAM_CHAN))
                 return
         
         # Ignore 2 samples in quick succession
         if self.last_logged_timecode > (timecode - MIN_SAMPLE_PERIOD):
+            log.debug("Not logging to disk because sample arrived too soon"
+                      " after last recorded sample")
             return
         
-        with open(self.filename, 'a') as data_file:
+        # If we get to here then write to disk
+        with open(self.filename, 'a') as data_file:            
             data_file.write("{:d} {:d}\n".format(timecode, watts))
-            # file will close when we leave "with" block
-        
-        self.last_logged_timecode = timecode
+            self.last_logged_timecode = timecode
+            # file will close when we leave "with" block        
 
     def __getstate__(self):
         """Used by pickle()"""
