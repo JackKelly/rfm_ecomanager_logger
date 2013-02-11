@@ -256,6 +256,11 @@ case "$1" in # switch on the first command
     tail $BABYSITTER_DIR/*.log
     ;;
 
+"stats")
+    echo "Running stats"
+    $POWERSTATS_DIR/powerstats/powerstats.py --numeric-subdirs
+    ;;
+
 *)
 	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log}'\n"
 	echo -e "Typical usage pattern:"
