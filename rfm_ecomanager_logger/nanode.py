@@ -20,7 +20,7 @@ class NanodeTooManyRetries(NanodeError):
     
 class NanodeDataWaiting(NanodeError):
     """Data is waiting yet this function needs a clear input buffer.
-    Caller must read and process data or flushInput before calling this function again.
+    Caller must read and process data or flush before calling this function again.
     The NanodeDataWaiting object may contain a line of data."""
 
 class Data(object):
@@ -51,7 +51,7 @@ class Nanode(object):
         retries = 2
         while retries > 0 and not self.abort:
             retries -= 1
-            self._serial.flushInput()
+            self.flush()
             self._serial.write("\r")
             
             # Turn off LOGGING on the Nanode if necessary
@@ -76,7 +76,7 @@ class Nanode(object):
                 retries -= 1
                 log.debug("Setting _last_nanode_time and _time_offset for"
                           " first time. Retries left={}".format(retries))
-                self._serial.flushInput()            
+                self.flush()           
                 try:
                     self._last_nanode_time = self._get_nanode_time()[1]
                     self._set_time_offset()
@@ -304,6 +304,22 @@ class Nanode(object):
             log.debug("From Nanode: {}".format(line))                
             return line
         
+    def flush(self):
+        """
+        Flush the serial port.
+        
+        Just using serial.flushInput() appeared to render the serial port
+        unreadable if the buffer was full.
+        """
+        
+        log.debug("Flushing serial input...")
+        timeout = self._serial.timeout
+        self._serial.timeout = 0
+        self._serial.readall() # flush the serial port (flushInput() seems to sometimes stop us from getting any further data)
+        self._serial.timeout = timeout
+        self._serial.flushInput()
+        self._serial.flush()
+        log.debug("Done flushing!")
     
     def _readline(self, ignore_json=False, retries=MAX_RETRIES):
         startup_seq = ["EDF IAM Receiver",
@@ -380,7 +396,7 @@ class Nanode(object):
     def send_command(self, cmd, param=None):
         cmd = str(cmd)
         log.debug("send_command(cmd={}, param={})".format(cmd, str(param)))
-        self._serial.flushInput()
+        self.flush()
         self._serial.write(cmd)
         self._process_response()
         if param:

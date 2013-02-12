@@ -191,6 +191,7 @@ class Manager(object):
         while True:
             print("")
             cmd = raw_input("Enter command (or ? for help): ")
+            self.nanode.flush()
             try:
                 if cmd == "?":
                     self._print_editing_help()
@@ -274,7 +275,6 @@ class Manager(object):
         self.nanode.send_command("k" if self._require_pair_request else "u")
         
     def _listen_for_new_tx(self):
-        self.nanode._serial.readall() # flush the serial port (flushInput() seems to sometimes stop us from getting any further data)
         WAIT_TIME = 30
         END_TIME = int(round(time.time())) + WAIT_TIME
         heard_tx = False
@@ -290,7 +290,6 @@ class Manager(object):
             else:
                 if data:
                     if data.is_pairing_request:
-                        print("Pairing request received.")
                         if data.tx_id in self.transmitters:
                             print("ERROR: Pair request received with same ID "
                                   "as a transmitter we already know about: {}, {}"
