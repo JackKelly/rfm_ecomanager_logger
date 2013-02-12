@@ -290,6 +290,7 @@ class Manager(object):
             else:
                 if data:
                     if data.is_pairing_request:
+                        print("Pairing request received.")
                         if data.tx_id in self.transmitters:
                             print("ERROR: Pair request received with same ID "
                                   "as a transmitter we already know about: {}, {}"
