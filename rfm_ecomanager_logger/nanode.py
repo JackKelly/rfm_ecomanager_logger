@@ -317,33 +317,38 @@ class Nanode(object):
             log.debug("retries left = {}".format(retries))
             line = self._readline_with_exception_handling()
             if line:
-                if line in startup_seq:
-                    index = startup_seq.index(line)
-                    log.info("Part {}/{} of Nanode init sequence detected."
-                             .format(index+1, len(startup_seq)))
+                if line in startup_seq: # Handle Nanode's startup sequence
                     
-                    if line == startup_seq[-1]:
-                        nanode_init_complete = True
-                    else:
-                        # Loop through aditional startup commands
-                        for startup_line in startup_seq[index+1:]:
-                            self._serial.timeout = 3
-                            line = self._readline_with_exception_handling()
-                            log.info("Part {}/{} of Nanode init sequence detected."
-                                     .format(startup_seq.index(startup_line)+1,
-                                             len(startup_seq)))                            
-                            if line == startup_line:
-                                nanode_init_complete = True
-                            else:
-                                log.info("Nanode crashed during startup. Attempting serial restart")
-                                self._serial.close()
-                                self._open_port()
-                                nanode_init_complete = False
-                                break
+                    # Extend timeout temporarily because the delay between
+                    # init lines can be several seconds.
+                    self._serial.timeout = 3
+                    
+                    # nanode_init_ok encodeds whether the Nanode startup
+                    # sequence is progressing as expected.
+                    # Set it true before the for loop just in case we never
+                    # enter the for loop because line == startup_seq[-1]
+                    nanode_init_ok = True 
+                    
+                    # Loop through rest of startup commands
+                    for i in range(startup_seq.index(line), len(startup_seq)):
+                        log.info("Part {}/{} of Nanode init sequence detected."
+                                 .format(i+1, len(startup_seq)))
+                        if line == startup_seq[i]:
+                            nanode_init_ok = True
+                        else:
+                            log.info("Nanode crashed during startup. "
+                                     "Attempting serial restart")
+                            self._serial.close()
+                            self._open_port()
+                            nanode_init_ok = False
+                            break
                         
-                    if nanode_init_complete:
+                        line = self._readline_with_exception_handling()
+                        
+                    self._serial.timeout = Nanode.TIMEOUT
+                        
+                    if nanode_init_ok:
                         log.info("Nanode has finished initialising")
-                        self._serial.timeout = Nanode.TIMEOUT
                         raise NanodeRestart()
 
                 elif ignore_json and line[0]=="{":
