@@ -84,7 +84,7 @@ class Nanode(object):
                     pass
                 else:
                     break
-    
+        
     def _set_time_offset(self):
         """
         Returns nothing but sets self._last_nanode_time if successful.
