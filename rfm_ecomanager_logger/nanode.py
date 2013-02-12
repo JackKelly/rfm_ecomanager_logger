@@ -320,7 +320,7 @@ class Nanode(object):
                 if line in startup_seq:
                     index = startup_seq.index(line)
                     log.info("Part {}/{} of Nanode init sequence detected."
-                             .format(index, len(startup_seq)))
+                             .format(index+1, len(startup_seq)))
                     
                     if line == startup_seq[-1]:
                         nanode_init_complete = True
@@ -330,7 +330,7 @@ class Nanode(object):
                             self._serial.timeout = 3
                             line = self._readline_with_exception_handling()
                             log.info("Part {}/{} of Nanode init sequence detected."
-                                     .format(startup_seq.index(startup_line),
+                                     .format(startup_seq.index(startup_line)+1,
                                              len(startup_seq)))                            
                             if line == startup_line:
                                 nanode_init_complete = True

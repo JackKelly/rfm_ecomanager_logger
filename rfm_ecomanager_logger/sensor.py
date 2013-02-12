@@ -41,7 +41,7 @@ class Sensor(object):
             if new_log_chan == "":
                 self.log_chan = default_log_chan
                 break
-            else:                
+            else:
                 if new_log_chan in log_chan_list:
                     print("  Log chan {:d} is already in use. "
                           "Please pick another.".format(new_log_chan))
