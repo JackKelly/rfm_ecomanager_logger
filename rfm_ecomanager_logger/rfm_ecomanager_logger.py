@@ -75,6 +75,9 @@ def setup_logger(args):
 def main():    
     args = setup_argparser()
     
+    if args.edit:
+        args.time_correction = False
+    
     setup_logger(args)
     
     log.info("Please wait for Nanode to initialise...")
