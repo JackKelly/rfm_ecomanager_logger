@@ -164,8 +164,10 @@ class Manager(object):
             try:
                 data = self.nanode.read_sensor_data(retries=retries)
             except NanodeRestart:
+                log.info("Nanode restart detected.")
                 self.nanode.init_nanode()
                 self._tell_nanode_about_transmitters()
+                log.info("Nanode has been re-initalised and logging is continuing.")
             else:
                 break
         return data
