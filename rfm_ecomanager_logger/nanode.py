@@ -305,31 +305,39 @@ class Nanode(object):
         
     
     def _readline(self, ignore_json=False, retries=MAX_RETRIES):
-        line = ""
+        startup_seq = ["EDF IAM Receiver",
+                       "SPI initialised", 
+                       "Attaching interrupt", 
+                       "Interrupt attached", 
+                       "Finished init"]
+        
         while retries >= 0 and not self.abort:
             retries -= 1
             log.debug("retries left = {}".format(retries))
             line = self._readline_with_exception_handling()
             if line:
-                if line == "EDF IAM Receiver": # Handle Nanode startup
-                    startup_seq = ["SPI initialised", 
-                                   "Attaching interrupt", 
-                                   "Interrupt attached", 
-                                   "Finished init"]
-                    nanode_init_complete = False
-                    log.info("Start of Nanode init sequence detected.")
-                    for startup_line in startup_seq:
-                        time.sleep(1)
-                        line = self._readline_with_exception_handling()
-                        log.info("Nanode: {}".format(line))
-                        if line == startup_line:
-                            nanode_init_complete = True
-                        else:
-                            log.info("Nanode crashed during startup. Attempting serial restart")
-                            self._serial.close()
-                            self._open_port()
-                            nanode_init_complete = False
-                            break
+                if line in startup_seq:
+                    index = startup_seq.index(line)
+                    log.info("Nanode: {}".format(line))                    
+                    log.info("Part {}/{} of Nanode init sequence detected."
+                             .format(index, len(startup_seq)))
+                    
+                    if line == startup_seq[-1]:
+                        nanode_init_complete = True
+                    else:
+                        # Loop through aditional startup commands
+                        for startup_line in startup_seq[index+1:]:
+                            time.sleep(1)
+                            line = self._readline_with_exception_handling()
+                            log.info("Nanode: {}".format(line))
+                            if line == startup_line:
+                                nanode_init_complete = True
+                            else:
+                                log.info("Nanode crashed during startup. Attempting serial restart")
+                                self._serial.close()
+                                self._open_port()
+                                nanode_init_complete = False
+                                break
                         
                     if nanode_init_complete:
                         log.info("Nanode has finished initialising")
