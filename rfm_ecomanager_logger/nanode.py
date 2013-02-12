@@ -34,6 +34,7 @@ class Nanode(object):
     MAX_ACCEPTABLE_LATENCY = 0.2 # in seconds
     TIME_OFFSET_UPDATE_PERIOD = 60*10 # in seconds
     MAX_ACCEPTABLE_DRIFT = 0.5 # in seconds
+    TIMEOUT = 1 # serial timeout in seconds
     
     def __init__(self, args):
         self.abort = False        
@@ -318,7 +319,6 @@ class Nanode(object):
             if line:
                 if line in startup_seq:
                     index = startup_seq.index(line)
-                    log.info("Nanode: {}".format(line))                    
                     log.info("Part {}/{} of Nanode init sequence detected."
                              .format(index, len(startup_seq)))
                     
@@ -327,9 +327,11 @@ class Nanode(object):
                     else:
                         # Loop through aditional startup commands
                         for startup_line in startup_seq[index+1:]:
-                            time.sleep(1)
+                            self._serial.timeout = 3
                             line = self._readline_with_exception_handling()
-                            log.info("Nanode: {}".format(line))
+                            log.info("Part {}/{} of Nanode init sequence detected."
+                                     .format(startup_seq.index(startup_line),
+                                             len(startup_seq)))                            
                             if line == startup_line:
                                 nanode_init_complete = True
                             else:
@@ -341,6 +343,7 @@ class Nanode(object):
                         
                     if nanode_init_complete:
                         log.info("Nanode has finished initialising")
+                        self._serial.timeout = Nanode.TIMEOUT
                         raise NanodeRestart()
 
                 elif ignore_json and line[0]=="{":
@@ -361,7 +364,7 @@ class Nanode(object):
         try:
             self._serial = serial.Serial(port=self.args.port, 
                                          baudrate=115200,
-                                         timeout=1) # timeout in seconds
+                                         timeout=Nanode.TIMEOUT) # timeout in seconds
         except serial.serialutil.SerialException:
             log.critical("Is the Nanode plugged into port {}?".format(self.args.port))
             sys.exit(1)
