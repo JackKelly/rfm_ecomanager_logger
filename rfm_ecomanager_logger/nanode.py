@@ -322,6 +322,11 @@ class Nanode(object):
         log.debug("Done flushing!")
     
     def _readline(self, ignore_json=False, retries=MAX_RETRIES):
+        """
+        Raises:
+            - NanodeRestart
+            - NanodeTooManyRetries
+        """
         startup_seq = ["EDF IAM Receiver",
                        "SPI initialised", 
                        "Attaching interrupt", 

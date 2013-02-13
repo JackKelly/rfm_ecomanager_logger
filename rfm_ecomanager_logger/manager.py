@@ -6,7 +6,7 @@ import sys
 import logging
 log = logging.getLogger("rfm_ecomanager_logger")
 import os
-from nanode import NanodeRestart, NanodeTooManyRetries, Nanode
+from nanode import NanodeRestart, NanodeTooManyRetries, Nanode, NanodeDataWaiting
 from input_with_cancel import *
 
 class Manager(object):
@@ -108,6 +108,12 @@ class Manager(object):
             else:
                 log.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
                 sys.exit(1)
+                
+    def _restart_nanode(self):
+        log.info("Initialising nanode...")
+        self.nanode.init_nanode()
+        self._tell_nanode_about_transmitters()
+        log.info("Nanode has been re-initalised.")                
 
     def _tell_nanode_about_transmitters(self):
         self.nanode.send_command("d") # delete all TXs
@@ -140,14 +146,28 @@ class Manager(object):
                 data = self._read_sensor_data(retries=7)
             except NanodeTooManyRetries, e:
                 log.error(e)
-                log.error("The Nanode has probably crashed. Check for sure by attempting to get time from Nanode.")
-                if self.nanode._get_nanode_time() is None:
+                log.error("The Nanode has probably crashed. "
+                          "Checking for sure by attempting to get time from Nanode.")
+                
+                try:
+                    nanode_time = self.nanode._get_nanode_time()
+                except NanodeDataWaiting, e:
+                    log.debug("Attempted to get nanode_time but data is "
+                              "waiting so continuing logging loop.")
+                    log.debug("NanodeDataWaiting({}) (data lost)".format(e))
+                    continue
+                except NanodeRestart:
+                    self._restart_nanode()
+                    continue
+                except NanodeTooManyRetries:
+                    log.warn("Nanode has crashed.")
+                
+                if nanode_time is None:
+                    # Nanode must have crashed so try to restart                    
                     log.error("Nanode isn't responded so attempting to restart.")
-                    # Nanode must have crashed so try to restart
                     self.nanode._serial.close()
                     self.nanode._open_port()
-                    self.nanode.init_nanode()
-                    self._tell_nanode_about_transmitters()
+                    self._restart_nanode()
                     log.info("Nanode restarted")
                 else:
                     log.info("Nanode responded to time check.")
@@ -164,14 +184,11 @@ class Manager(object):
             try:
                 data = self.nanode.read_sensor_data(retries=retries)
             except NanodeRestart:
-                log.info("Nanode restart detected.")
-                self.nanode.init_nanode()
-                self._tell_nanode_about_transmitters()
-                log.info("Nanode has been re-initalised and logging is continuing.")
+                self._restart_nanode()
             else:
                 break
         return data
-
+        
     def get_log_chan_list(self):
         log_ids = []
         for dummy, tx in self.transmitters.iteritems():
