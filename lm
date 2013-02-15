@@ -261,6 +261,12 @@ case "$1" in # switch on the first command
     $POWERSTATS_DIR/powerstats/powerstats.py --numeric-subdirs
     ;;
 
+"rmlogs")
+    echo "Removing logs"
+    rm $RFM_ECOMANAGER_LOGGER_DIR/*.log.*
+    rm $BABYSITTER_DIR/*.log.*
+    ;;
+
 *)
 	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log}'\n"
 	echo -e "Typical usage pattern:"
