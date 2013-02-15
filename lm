@@ -263,7 +263,7 @@ case "$1" in # switch on the first command
 
 "rmlogs")
     echo "Removing logs"
-    rm -f $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log*
+    rm -f $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log* $LOGGER_BASE_DIR/rsync/*.log*
     ;;
 
 *)
