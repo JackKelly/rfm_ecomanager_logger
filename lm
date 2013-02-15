@@ -267,9 +267,9 @@ case "$1" in # switch on the first command
     response=${response,,}    # tolower
     if [[ $response =~ ^(yes|y)$ ]]
     then
-	rm -f $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log* $LOGGER_BASE_DIR/rsync/*.log*
-	rm -rf $DATA_DIR/*
-	rm -f $RFM_ECOMANAGER_LOGGER_DIR/radioIDs.pkl
+	rm -fv $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log* $LOGGER_BASE_DIR/rsync/*.log*
+	rm -rfv $DATA_DIR/*
+	rm -fv $RFM_ECOMANAGER_LOGGER_DIR/radioIDs.pkl
     else
 	echo "Aborted"
     fi
