@@ -2,6 +2,10 @@ Python front-end for the [rfm_edf_ecomanager RF base unit](/JackKelly/rfm_edf_ec
 makes it relatively easy to add, remove and edit transmitters and also to log power consumption data
 to a set of log files in the same format as used by [MIT's REDD project](http://redd.csail.mit.edu/).
 
+# Manual
+
+* Please see [the wiki](https://github.com/JackKelly/rfm_ecomanager_logger/wiki) for a guide to using this code.
+
 ### Related projects
 
 * [rfm_edf_ecomanager RF base unit](/JackKelly/rfm_edf_ecomanager/) Code which runs
