@@ -8,11 +8,11 @@ to a set of log files in the same format as used by [MIT's REDD project](http://
 
 ### Related projects
 
-* [rfm_edf_ecomanager RF base unit](/JackKelly/rfm_edf_ecomanager/) Code which runs
+* [rfm_edf_ecomanager RF base unit](https://github.com/JackKelly/rfm_edf_ecomanager/) Code which runs
 on a Nanode / Arduino and the rfm_ecomanager_logger talks to.
-* [babysitter](/JackKelly/babysitter) Keeps tabs on a logging process (like rfm_ecomanager_logger) and sends an
+* [babysitter](https://github.com/JackKelly/babysitter) Keeps tabs on a logging process (like rfm_ecomanager_logger) and sends an
 email if problems are detected.
-* [powerstats](/JackKelly/powerstats) Create simple statistics from power data text files.  Mostly useful to check 
+* [powerstats](https://github.com/JackKelly/powerstats) Create simple statistics from power data text files.  Mostly useful to check 
 that transmitters are behaving themselves.
 
 ### Permission denied error
