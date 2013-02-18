@@ -9,6 +9,10 @@ class TransmitterError(Exception):
 
 
 class Transmitter(object):
+    """Abstract base class for representing a single transmitter.
+    A transmitter may have multiple sensors.
+    """
+    
     __metaclass__ = abc.ABCMeta
     
     def __init__(self, rf_id, manager):
@@ -62,9 +66,6 @@ class Transmitter(object):
                 logging.error("Transmitter {:d} reports a sensor is connected to "
                       "port {:d} but we don't have any info for that sensor id."
                       .format(self.id, s_id))
-                
-        if data.state is not None and data.state == 0 and self.manager.args.switch:
-            self.switch(1)
 
     def __getstate__(self):
         """Used by pickle()"""
@@ -106,10 +107,14 @@ class Cc_trx(Transmitter):
     ADD_COMMAND = "N"
     DEL_COMMAND = "R"
     TYPE = "TRX"
+    TURN_ON_TIME = 2000 # Seconds. If we haven't heard from the Cc_trx for
+    # this length of time, and if it is off, then turn it on.
+    # see Cc_trx.new_reading() 
     
     def __init__(self, rf_id, manager):
         super(Cc_trx, self).__init__(rf_id, manager)
         self.sensors = {1: Sensor()}
+        self.previous_timecode = 0
         
     def reject_pair_request(self):
         # Add and immediately remove
@@ -119,6 +124,19 @@ class Cc_trx(Transmitter):
     def update_name(self, sensors=None):
         super(Cc_trx, self).update_name()
         self.sensors[1].update_name(self)
+
+    # Override
+    def new_reading(self, data):
+        super(Cc_trx, self).new_reading(data)
+        
+        # Switch the IAM on if necessary
+        if (data.state is not None and 
+            data.state == 0 and 
+            self.manager.args.switch and
+            self.previous_timecode < (data.timecode - Cc_trx.TURN_ON_TIME)):
+            self.switch(1)
+            
+        self.previous_timecode = data.timecode
 
     def switch(self, on_or_off):
         logging.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
