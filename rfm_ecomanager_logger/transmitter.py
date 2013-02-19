@@ -141,7 +141,7 @@ class Cc_trx(Transmitter):
     # Override
     def unpickle(self, manager):
         super(Cc_trx, self).unpickle(manager)
-        self.previous_timecode = 0
+        self.previous_timecode = self.get('previous_timecode', 0)
 
     def switch(self, on_or_off):
         logging.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
