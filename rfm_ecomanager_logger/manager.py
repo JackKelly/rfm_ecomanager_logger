@@ -37,8 +37,11 @@ class Manager(object):
             if self.args.edit:
                 self.transmitters = {}
             else:
-                sys.exit("{:s} file not found. Please run with --edit command line option"
-                  " to train the system before logging data.".format(Manager.PICKLE_FILE))
+                log.critical("{:s} file not found. Please run with --edit "
+                             "command line option to train the system before "
+                             "logging data.".format(Manager.PICKLE_FILE))
+                sys.exit(1)
+                
         else:
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
