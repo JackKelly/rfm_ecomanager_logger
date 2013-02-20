@@ -133,7 +133,6 @@ update ()
 	    echo ""
 	    echo "Updating ${name[$i]}"
 	    cd ${directory[$i]} && git pull
-	    check_return_value
 	done
 }
 
