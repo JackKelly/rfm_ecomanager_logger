@@ -16,7 +16,7 @@ check_return_value ()
 {
     if [ $? -ne 0 ]
     then
-	print_error "ERROR. lm.sh script cannot finished. Please see above for error details.\n"
+	print_error "ERROR. lm.sh script cannot finish. Please see above for error details.\n"
 	exit $?
     fi
 }
