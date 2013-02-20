@@ -125,6 +125,36 @@ kill_process ()
 
 }
 
+update ()
+{
+	echo "Updating code from github"
+	for (( i=0; i<$length; i++ ))
+	do
+	    echo ""
+	    echo "Updating ${name[$i]}"
+	    cd ${directory[$i]} && git pull
+	    check_return_value
+	done
+}
+
+start ()
+{
+	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
+	sleep 1
+
+	echo "Checking the rfm_ecomanager_logger.py really is running..."
+	pgrep rfm_ecomanager_ > /dev/null
+	if [ $? -eq 0 ]
+	then
+	    echo "$name is running"
+	else
+	    print_error "ERROR $name FAILED TO START SO WILL NOT START BABYSITTER!\n"
+	    exit 1
+	fi	
+
+	start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
+}
+
 echo ""
 
 name[0]="rfm_ecomanager_logger"
@@ -149,14 +179,7 @@ SND_CARD_POWER_METER="${directory[3]}"
 case "$1" in # switch on the first command
 
 "update")
-	echo "Updating code from github"
-	for (( i=0; i<$length; i++ ))
-	do
-	    echo ""
-	    echo "Updating ${name[$i]}"
-	    cd ${directory[$i]} && git pull
-	    check_return_value
-	done
+	update
 	;;
 
 "flash")
@@ -183,20 +206,12 @@ case "$1" in # switch on the first command
 	;;
 
 "start")
-	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
-	sleep 1
+	start
+	;;
 
-	echo "Checking the rfm_ecomanager_logger.py really is running..."
-	pgrep rfm_ecomanager_ > /dev/null
-	if [ $? -eq 0 ]
-	then
-	    echo "$name is running"
-	else
-	    print_error "ERROR $name FAILED TO START SO WILL NOT START BABYSITTER!\n"
-	    exit 1
-	fi	
-
-	start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
+"boot")
+	update
+	start
 	;;
 
 "stop")
@@ -276,7 +291,7 @@ case "$1" in # switch on the first command
     ;;
 
 *)
-	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log}'\n"
+	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log|boot}'\n"
 	echo -e "Typical usage pattern:"
 	echo -e "  1) Teach the logging system about your sensors using 'lm edit'"
 	echo -e "  2) Start logging using 'lm start'"
@@ -285,6 +300,8 @@ case "$1" in # switch on the first command
 	echo -e "  5) Check that data are coming in using 'lm data'"
 	echo -e "  6) Then, when you've finished logging, use 'lm stop'"
 	echo -e "  7) Update the Nanode's flash with the latest code using 'lm flash'\n"
+	echo -e "\n"
+	echo -e "'boot' runs 'update' and then 'start'."
 	exit 1
 	;;
 
