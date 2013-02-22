@@ -272,7 +272,7 @@ case "$1" in # switch on the first command
 
 "stats")
     echo "Running stats"
-    $POWERSTATS_DIR/powerstats/powerstats.py --numeric-subdirs
+    $POWERSTATS_DIR/powerstats/powerstats.py
     ;;
 
 "reset")
