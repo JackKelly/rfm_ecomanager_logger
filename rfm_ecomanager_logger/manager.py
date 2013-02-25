@@ -113,7 +113,7 @@ class Manager(object):
                 sys.exit(1)
                 
     def _restart_nanode(self):
-        log.info("Initialising nanode...")
+        log.info("restart_nanode. Initialising nanode...")
         self.nanode.init_nanode()
         self._tell_nanode_about_transmitters()
         log.info("Nanode has been re-initalised.")                
@@ -153,21 +153,18 @@ class Manager(object):
                           "Checking for sure by attempting to get time from Nanode.")
                 
                 try:
-                    nanode_time = self.nanode._get_nanode_time()
+                    self.nanode._get_nanode_time()
                 except NanodeDataWaiting, e:
-                    log.debug("Attempted to get nanode_time but data is "
+                    log.warn("Attempted to get nanode_time but data is "
                               "waiting so continuing logging loop.")
-                    log.debug("NanodeDataWaiting({}) (data lost)".format(e))
+                    log.warn("NanodeDataWaiting({}) (data lost)".format(e))
                     continue
                 except NanodeRestart:
                     self._restart_nanode()
                     continue
                 except NanodeTooManyRetries:
-                    log.warn("Nanode has crashed.")
-                
-                if nanode_time is None:
                     # Nanode must have crashed so try to restart                    
-                    log.error("Nanode isn't responded so attempting to restart.")
+                    log.error("Nanode isn't responding so attempting to restart.")
                     self.nanode._serial.close()
                     self.nanode._open_port()
                     self._restart_nanode()
