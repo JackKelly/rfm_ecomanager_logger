@@ -273,6 +273,9 @@ class Nanode(object):
             data.tx_id    = json_line.get("id")
             data.tx_type  = json_line.get("type")
             data.state    = json_line.get("state")
+            data.reply_to_poll = json_line.get("reply_to_poll")
+            if data.reply_to_poll:
+                data.reply_to_poll = int(data.reply_to_poll)
             return data
 
            

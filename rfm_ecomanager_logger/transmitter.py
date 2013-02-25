@@ -1,12 +1,15 @@
 from __future__ import print_function
 import abc
 import logging
+log = logging.getLogger("rfm_ecomanager_logger")
 from sensor import Sensor                   
 from input_with_cancel import input_with_cancel
 
 class TransmitterError(Exception):
     """For errors from Transmitter objects"""
 
+class SaveToDisk(TransmitterError):
+    """Need to pickle!"""
 
 class Transmitter(object):
     """Abstract base class for representing a single transmitter.
@@ -63,7 +66,7 @@ class Transmitter(object):
             if s_id in self.sensors.keys():
                 self.sensors[s_id].log_data_to_disk(data.timecode, watts)
             else:
-                logging.error("Transmitter {:d} reports a sensor is connected to "
+                log.error("Transmitter {:d} reports a sensor is connected to "
                       "port {:d} but we don't have any info for that sensor id."
                       .format(self.id, s_id))
 
@@ -107,14 +110,11 @@ class Cc_trx(Transmitter):
     ADD_COMMAND = "N"
     DEL_COMMAND = "R"
     TYPE = "TRX"
-    TURN_ON_TIME = 2000 # Seconds. If we haven't heard from the Cc_trx for
-    # this length of time, and if it is off, then turn it on.
-    # see Cc_trx.new_reading() 
     
     def __init__(self, rf_id, manager):
         super(Cc_trx, self).__init__(rf_id, manager)
         self.sensors = {1: Sensor()}
-        self.previous_timecode = 0
+        self.state = 1 # is the IAM on or off?
         
     def reject_pair_request(self):
         # Add and immediately remove
@@ -129,22 +129,28 @@ class Cc_trx(Transmitter):
     def new_reading(self, data):
         super(Cc_trx, self).new_reading(data)
         
-        # Switch the IAM on if necessary
-        if (data.state is not None and 
-            data.state == 0 and 
-            self.manager.args.switch and
-            self.previous_timecode < (data.timecode - Cc_trx.TURN_ON_TIME)):
-            self.switch(1)
+        # If the IAM's power button has been pressed then modify self.state
+        # else if the IAM is just responding to a poll from the Nanode
+        # and reports that it has the "wrong" state then switch it.
+        # Older (pre 25/2/13) Nanode code doesn't have a reply_to_poll item
+        if (data.reply_to_poll is not None and
+            data.state is not None and
+            data.state != self.state):
             
-        self.previous_timecode = data.timecode
+            if data.reply_to_poll == 0: # IAM's power switch was pressed 
+                self.state = data.state
+                raise SaveToDisk("{} self.state has changed to {}"
+                                 .format(self.sensors[1].name, str(self.state)))
+            elif self.manager.args.switch:
+                self.switch(self.state)
     
     # Override
     def unpickle(self, manager):
         super(Cc_trx, self).unpickle(manager)
-        self.previous_timecode = self.__dict__.get('previous_timecode', 0)
+        self.state = self.__dict__.get('state', 1)
 
     def switch(self, on_or_off):
-        logging.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
+        log.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
         if on_or_off:
             self.manager.nanode.send_command("1", self.id)
         else:

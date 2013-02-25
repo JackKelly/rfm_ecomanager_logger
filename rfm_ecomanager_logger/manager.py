@@ -1,5 +1,5 @@
 from __future__ import print_function
-from transmitter import Cc_tx, Cc_trx, TransmitterError
+from transmitter import Cc_tx, Cc_trx, TransmitterError, SaveToDisk
 import pickle
 import time
 import sys
@@ -174,8 +174,12 @@ class Manager(object):
             else:
                 if data:
                     if data.tx_id in self.transmitters:
-                        self.transmitters[data.tx_id] \
-                            .new_reading(data)
+                        try:
+                            self.transmitters[data.tx_id] \
+                                .new_reading(data)
+                        except SaveToDisk, e:
+                            log.info("Save to disk: {}".format(str(e)))
+                            self._pickle()
                     else:
                         log.error("Unknown TX: {}".format(data.tx_id))
 
