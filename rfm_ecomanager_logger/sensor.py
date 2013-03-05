@@ -27,7 +27,8 @@ class Sensor(object):
         if new_name:
             self.name = new_name
         
-        if self.name.lower() in ["agg", "aggregate", "mains"]:
+        if self.name.lower() in ["agg", "aggregate", "mains", "whole_house",
+                                 "whole house", "wholehouse", "whole-house"]:
             self.agg_chan = True
         
         self.agg_chan = yes_no_cancel("  Is this an aggregate (whole-house) "
