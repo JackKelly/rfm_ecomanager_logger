@@ -4,7 +4,7 @@ import logging
 log = logging.getLogger("rfm_ecomanager_logger")
 
 MAX_POWER_FOR_AGG_CHAN = 20000
-MAX_POWER_FOR_IAM_CHAN =  3200
+MAX_POWER_FOR_IAM_CHAN =  4000 # 4000W = 17A x 230V
 
 # ignore a sample which arrives less than
 # this number of seconds after previous recorded sample 
