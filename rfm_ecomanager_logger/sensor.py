@@ -3,6 +3,8 @@ from input_with_cancel import input_with_cancel, input_int_with_cancel, yes_no_c
 import logging
 log = logging.getLogger("rfm_ecomanager_logger")
 
+# The max power for each sensor reading is capped to remove
+# insanely large values (probably caused by corrupt RF packets)
 MAX_POWER_FOR_AGG_CHAN = 20000
 MAX_POWER_FOR_IAM_CHAN =  4000 # 4000W = 17A x 230V
 
