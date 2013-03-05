@@ -30,7 +30,8 @@ class Sensor(object):
         if self.name.lower() in ["agg", "aggregate", "mains"]:
             self.agg_chan = True
         
-        self.agg_chan = yes_no_cancel("  Is this an aggregate channel?", self.agg_chan)
+        self.agg_chan = yes_no_cancel("  Is this an aggregate (whole-house) "
+                                      " channel?", self.agg_chan)
         
         log_chan_list = tx.manager.get_log_chan_list()
         default_log_chan = self.log_chan if self.log_chan \
