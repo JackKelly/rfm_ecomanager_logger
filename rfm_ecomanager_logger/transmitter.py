@@ -1,6 +1,7 @@
 from __future__ import print_function
 import abc
 import logging
+import time
 log = logging.getLogger("rfm_ecomanager_logger")
 from sensor import Sensor                   
 from input_with_cancel import input_with_cancel
@@ -29,18 +30,21 @@ class Transmitter(object):
     def accept_pair_request(self):
         print("Pairing with", self.id)
         self.manager.nanode.send_command("p", self.id)
-        retries_left = 5
         success = False
-        while retries_left > 0 and not success:
-            retries_left -= 1
+        DEADLINE = time.time() + 5
+        while time.time() < DEADLINE and not success:
             data = self.manager.nanode.read_sensor_data()
-            if data.pair_ack and data.tx_id == self.id:
-                print("Successfully paired with", self.id)
-                self.update_name()
-                success = True
+            if data.tx_id == self.id:
+                if data.pair_ack:
+                    print("Successfully paired with", self.id)
+                    self.update_name()
+                    success = True
+                else:
+                    success = False
+                    break
             else:
-                print("Failed to pair with", self.id, "Retries left =", retries_left)
-                
+                log.debug("Ignoring {} while waiting for pair ack from {}"
+                          .format(data.tx_id, self.id))                
         if not success:
             raise TransmitterError("Failed to pair with {}".format(self.id))            
     
