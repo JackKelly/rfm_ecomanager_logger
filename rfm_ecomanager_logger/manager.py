@@ -123,12 +123,16 @@ class Manager(object):
         self.nanode.send_command("D") # delete all TRXs        
         if self.transmitters:
             num_txs, num_trxs = self._count_transmitters()
+            log.info("Adding {} TXs and {} TRXs to Nanode."
+                     .format(num_txs, num_trxs))
             if num_txs:
                 self.nanode.send_command('s', num_txs)
             if num_trxs:
                 self.nanode.send_command('S', num_trxs)       
             for dummy, tx in self.transmitters.iteritems():
                 tx.add_to_nanode()
+        else:
+            log.warn("No transmitters to add to Nanode!")
 
     def _count_transmitters(self):
         num_txs = 0
