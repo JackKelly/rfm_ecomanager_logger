@@ -9,7 +9,7 @@ from input_with_cancel import input_with_cancel
 class TransmitterError(Exception):
     """For errors from Transmitter objects"""
 
-class SaveToDisk(TransmitterError):
+class NeedToPickle(TransmitterError):
     """Need to pickle!"""
 
 class Transmitter(object):
@@ -114,11 +114,15 @@ class Cc_trx(Transmitter):
     ADD_COMMAND = "N"
     DEL_COMMAND = "R"
     TYPE = "TRX"
+    SECONDS_OFF = 12 # if the IAM is unplugged for this length of time
+    # or longer then we will switch it to its previous power state
+    # when it is powered on again.
     
     def __init__(self, rf_id, manager):
         super(Cc_trx, self).__init__(rf_id, manager)
         self.sensors = {1: Sensor()}
         self.state = 1 # is the IAM on or off?
+        self.time_of_last_packet = 0        
         
     def reject_pair_request(self):
         # Add and immediately remove
@@ -133,33 +137,73 @@ class Cc_trx(Transmitter):
     def new_reading(self, data):
         super(Cc_trx, self).new_reading(data)
         
-        # If the IAM's power button has been pressed then modify self.state
-        # else if the IAM is just responding to a poll from the Nanode
-        # and reports that it has the "wrong" state then switch it.
-        # Older (pre 25/2/13) Nanode code doesn't have a reply_to_poll item
-        if (data.reply_to_poll is not None and
-            data.state is not None and
-            data.state != self.state):
-            
-            if data.reply_to_poll == 0: # IAM's power switch was pressed 
-                self.state = data.state
-                raise SaveToDisk("{} self.state has changed to {}"
-                                 .format(self.sensors[1].name, str(self.state)))
-            elif self.manager.args.switch:
-                self.switch(self.state)
+        # Check if IAM has just changed state.  Either accept that state change
+        # or reject it and switch the IAM to the previous state.
+        if data.state is not None:
+            if data.state != self.state:
+                if data.state == 1:
+                    # IAM has just turned on. This can ONLY happen if the IAM's
+                    # power button has been pressed, so accept this change
+                    # without further consideration.
+                    accept_state_change_and_log()
+                else:
+                    # IAM has turned off. Several possible causes:
+                    # 1) the IAM's power button has been pressed and we have
+                    #    received the IAM's packet notifying us of the button
+                    #    press. In this case we accept the change and log
+                    #    it to disk.
+                    # 2) The IAM's power button has been pressed but we have
+                    #    failed to receive notification from the IAM (the IAM
+                    #    doesn't do carrier detection or wait for an ACK)
+                    # 3) the IAM randomly decided to power off (happens 
+                    #    occasionally).  Unfortunately there is no way to 
+                    #    discriminate between cases 2 and 3.
+                    # 4) mains power has been returned to the IAM (all IAMs
+                    #    always start in their 'off' state). In this case we
+                    #    want to return the IAM to its previous recorded state.
+                    #    We can try to detect this case by checking how long
+                    #    the IAM has been off for. 
+                    if (data.reply_to_poll is not None and
+                        data.reply_to_poll == 0):
+                        # IAM's power button was definitely pressed
+                        # (We need to check if reply_to_poll is not None
+                        # because Older (pre 25/2/13) Nanode code doesn't
+                        # have a reply_to_poll item)                        
+                        accept_state_change_and_log()
+                    elif ((self.time_of_last_packet + Cc_trx.SECONDS_OFF) 
+                          > time.time()):
+                        # We heard from the IAM within the last SECONDS_OFF
+                        # so this state change is likely to be the result of
+                        # an IAM button press that we didn't hear.
+                        accept_state_change_and_log()
+                    elif self.manager.args.switch:
+                        # We haven't heard from the IAM for at least
+                        # SECONDS_OFF so let's assume it was unplugged and
+                        # plugged in again, in which case we must switch it
+                        # to its previous state.
+                        self.switch(self.state)
+
+        self.time_of_last_packet = time.time()
+        
+        def accept_state_change_and_log():
+            self.state = data.state
+            self.time_of_last_packet = time.time()
+            raise NeedToPickle("IAM state has changed")
+            # TODO: log state change        
     
     # Override
     def unpickle(self, manager):
         super(Cc_trx, self).unpickle(manager)
         self.state = self.__dict__.get('state', 1)
 
-    def switch(self, on_or_off):
-        log.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name, on_or_off))
-        if on_or_off:
-            self.manager.nanode.send_command("1", self.id)
-        else:
-            self.manager.nanode.send_command("0", self.id)
-
+    def switch(self, state):
+        """Switch IAM on or off.
+        Args:
+            state (boolean)
+        """
+        log.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name,
+                                                 state))
+        self.manager.nanode.send_command(str(state), self.id)
 
 class Cc_tx(Transmitter):
     

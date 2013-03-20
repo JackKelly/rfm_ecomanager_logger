@@ -1,5 +1,5 @@
 from __future__ import print_function
-from transmitter import Cc_tx, Cc_trx, TransmitterError, SaveToDisk
+from transmitter import Cc_tx, Cc_trx, TransmitterError, NeedToPickle
 import pickle
 import time
 import sys
@@ -179,9 +179,8 @@ class Manager(object):
                 if data:
                     if data.tx_id in self.transmitters:
                         try:
-                            self.transmitters[data.tx_id] \
-                                .new_reading(data)
-                        except SaveToDisk, e:
+                            self.transmitters[data.tx_id].new_reading(data)
+                        except NeedToPickle, e:
                             log.info("Save to disk: {}".format(str(e)))
                             self._pickle()
                     else:
