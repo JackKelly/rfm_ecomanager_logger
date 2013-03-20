@@ -59,7 +59,7 @@ class Sensor(object):
         self.filename = tx.manager.args.data_directory + \
                         "/channel_{:d}.dat".format(self.log_chan)
                         
-    def log_data_to_disk(self, timecode, watts):
+    def log_data_to_disk(self, timecode, watts, new_state=None):
         log.debug("log_data_to_disk {} {} {} {}"
                   .format(self.filename, self.name, timecode, watts))
 
@@ -67,7 +67,8 @@ class Sensor(object):
             log.debug("Not logging to disk because log_chan == 0")
             return
         
-        # Filter insanely high values (these are almost certainly measurement errors)
+        # Filter insanely high values (these are almost certainly
+        # measurement errors)
         if self.agg_chan:
             if watts > MAX_POWER_FOR_AGG_CHAN:
                 log.debug("Not logging to disk because watts {} >"
@@ -89,7 +90,11 @@ class Sensor(object):
         
         # If we get to here then write to disk
         with open(self.filename, 'a') as data_file:            
-            data_file.write("{:d} {:d}\n".format(timecode, watts))
+            data_file.write("{:d} {:d}".format(timecode, watts))
+            if new_state is None:
+                data_file.write("\n")
+            else:                                
+                data_file.write(" {:d}\n".format(new_state))
             self.last_logged_timecode = timecode
             # file will close when we leave "with" block        
 

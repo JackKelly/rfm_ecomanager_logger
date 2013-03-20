@@ -68,11 +68,16 @@ class Transmitter(object):
         for s_id, watts in data.sensors.iteritems():
             s_id = int(s_id)
             if s_id in self.sensors.keys():
-                self.sensors[s_id].log_data_to_disk(data.timecode, watts)
+                self.sensors[s_id].log_data_to_disk(data.timecode, watts,
+                                                    self.get_power_state())
             else:
                 log.error("Transmitter {:d} reports a sensor is connected to "
                       "port {:d} but we don't have any info for that sensor id."
                       .format(self.id, s_id))
+
+    def get_power_state(self):
+        """Overridden by child classes, if necessary."""
+        return None
 
     def __getstate__(self):
         """Used by pickle()"""
@@ -122,7 +127,8 @@ class Cc_trx(Transmitter):
         super(Cc_trx, self).__init__(rf_id, manager)
         self.sensors = {1: Sensor()}
         self.state = 1 # is the IAM on or off?
-        self.time_of_last_packet = 0        
+        self.time_of_last_packet = 0
+        self.state_just_changed = False        
         
     def reject_pair_request(self):
         # Add and immediately remove
@@ -135,17 +141,21 @@ class Cc_trx(Transmitter):
         
     def get_name(self):
         return self.sensors[1].name
+    
+    def get_power_state(self):
+        """Override."""        
+        return self.state if self.state_just_changed else None
 
     # Override
     def new_reading(self, data):
-        super(Cc_trx, self).new_reading(data)
-        
+
+        self.state_just_changed = False
+
         def accept_state_change_and_log():
             self.state = data.state
-            self.time_of_last_packet = time.time()
-            raise NeedToPickle("IAM " + self.get_name() + 
-                               " state has changed to " + str(self.state))
-            # TODO: log state change        
+            self.state_just_changed = True
+            log.info("IAM " + self.get_name() + 
+                     " state has changed to " + str(self.state))     
         
         # Check if IAM has just changed state.  Either accept that state change
         # or reject it and switch the IAM to the previous state.
@@ -181,7 +191,7 @@ class Cc_trx(Transmitter):
                         # have a reply_to_poll item)                        
                         accept_state_change_and_log()
                     elif ((self.time_of_last_packet + Cc_trx.SECONDS_OFF) 
-                          > time.time()):
+                          > data.timecode):
                         # We heard from the IAM within the last SECONDS_OFF
                         # so this state change is likely to be the result of
                         # an IAM button press that we didn't hear.
@@ -193,7 +203,8 @@ class Cc_trx(Transmitter):
                         # to its previous state.
                         self.switch(self.state)
 
-        self.time_of_last_packet = time.time()
+        self.time_of_last_packet = data.timecode
+        super(Cc_trx, self).new_reading(data)
     
     # Override
     def unpickle(self, manager):

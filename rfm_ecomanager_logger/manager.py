@@ -178,10 +178,8 @@ class Manager(object):
             else:
                 if data:
                     if data.tx_id in self.transmitters:
-                        try:
-                            self.transmitters[data.tx_id].new_reading(data)
-                        except NeedToPickle, e:
-                            log.info("Save to disk: {}".format(str(e)))
+                        self.transmitters[data.tx_id].new_reading(data)
+                        if self.transmitters[data.tx_id].state_just_changed:
                             self._pickle()
                     else:
                         log.error("Unknown TX: {}".format(data.tx_id))
