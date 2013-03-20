@@ -356,6 +356,7 @@ class Manager(object):
                                    else Cc_trx(tx_id, self)
         
     def _pickle(self):
+        log.info("Pickling")
         with open(Manager.PICKLE_FILE, "wb") as output:
             # "with" ensures we close the file, even if an exception occurs.
             pickle.dump(self.transmitters, output)
