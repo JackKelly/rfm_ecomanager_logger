@@ -132,6 +132,9 @@ class Cc_trx(Transmitter):
     def update_name(self, sensors=None):
         super(Cc_trx, self).update_name()
         self.sensors[1].update_name(self)
+        
+    def get_name(self):
+        return self.sensors[1].name
 
     # Override
     def new_reading(self, data):
@@ -140,7 +143,8 @@ class Cc_trx(Transmitter):
         def accept_state_change_and_log():
             self.state = data.state
             self.time_of_last_packet = time.time()
-            raise NeedToPickle("IAM state has changed")
+            raise NeedToPickle("IAM " + self.get_name() + 
+                               " state has changed to " + str(self.state))
             # TODO: log state change        
         
         # Check if IAM has just changed state.  Either accept that state change
@@ -201,8 +205,7 @@ class Cc_trx(Transmitter):
         Args:
             state (boolean)
         """
-        log.info("Switching {:s} to {:d}".format(self.sensors.values()[0].name,
-                                                 state))
+        log.info("Switching {:s} to {:d}".format(self.get_name(), state))
         self.manager.nanode.send_command(str(state), self.id)
 
 class Cc_tx(Transmitter):
