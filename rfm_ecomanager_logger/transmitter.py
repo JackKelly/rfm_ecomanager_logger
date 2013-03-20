@@ -210,6 +210,7 @@ class Cc_trx(Transmitter):
     def unpickle(self, manager):
         super(Cc_trx, self).unpickle(manager)
         self.state = self.__dict__.get('state', 1)
+        self.state = self.__dict__.get('state_just_changed', 0)
 
     def switch(self, state):
         """Switch IAM on or off.
