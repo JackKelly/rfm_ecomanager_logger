@@ -179,7 +179,8 @@ class Manager(object):
                 if data:
                     if data.tx_id in self.transmitters:
                         self.transmitters[data.tx_id].new_reading(data)
-                        if self.transmitters[data.tx_id].state_just_changed:
+                        if (self.transmitters[data.tx_id].TYPE == "TRX" and 
+                            self.transmitters[data.tx_id].state_just_changed):
                             self._pickle()
                     else:
                         log.error("Unknown TX: {}".format(data.tx_id))
