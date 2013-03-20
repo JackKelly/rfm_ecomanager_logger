@@ -137,6 +137,12 @@ class Cc_trx(Transmitter):
     def new_reading(self, data):
         super(Cc_trx, self).new_reading(data)
         
+        def accept_state_change_and_log():
+            self.state = data.state
+            self.time_of_last_packet = time.time()
+            raise NeedToPickle("IAM state has changed")
+            # TODO: log state change        
+        
         # Check if IAM has just changed state.  Either accept that state change
         # or reject it and switch the IAM to the previous state.
         if data.state is not None:
@@ -184,12 +190,6 @@ class Cc_trx(Transmitter):
                         self.switch(self.state)
 
         self.time_of_last_packet = time.time()
-        
-        def accept_state_change_and_log():
-            self.state = data.state
-            self.time_of_last_packet = time.time()
-            raise NeedToPickle("IAM state has changed")
-            # TODO: log state change        
     
     # Override
     def unpickle(self, manager):
