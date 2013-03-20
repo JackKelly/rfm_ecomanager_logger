@@ -144,7 +144,12 @@ class Cc_trx(Transmitter):
     
     def get_power_state(self):
         """Override."""        
-        return self.state if self.state_just_changed else None
+        if self.state_just_changed and self.time_of_last_packet != 0:
+            # Don't record a button press to data file if this is the first
+            # line of the data file
+            return self.state
+        else:
+            return None
 
     # Override
     def new_reading(self, data):
@@ -203,8 +208,8 @@ class Cc_trx(Transmitter):
                         # to its previous state.
                         self.switch(self.state)
 
-        self.time_of_last_packet = data.timecode
         super(Cc_trx, self).new_reading(data)
+        self.time_of_last_packet = data.timecode
     
     # Override
     def unpickle(self, manager):
