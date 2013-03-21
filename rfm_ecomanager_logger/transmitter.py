@@ -166,6 +166,7 @@ class Cc_trx(Transmitter):
         # or reject it and switch the IAM to the previous state.
         if data.state is not None:
             if data.state != self.state:
+                log.info(self.get_name() + " data.state={}, self.state={}".format(data.state, self.state))
                 if data.state == 1:
                     # IAM has just turned on. This can ONLY happen if the IAM's
                     # power button has been pressed, so accept this change
