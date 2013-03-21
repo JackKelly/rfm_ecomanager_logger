@@ -25,7 +25,7 @@ class Sensor(object):
     def update_name(self, tx):
         new_name = input_with_cancel("  New name for sensor [{:s}]:".format(self.name))
         if new_name:
-            self.name = new_name
+            self.name = new_name.strip()
         
         if self.name.lower() in ["agg", "aggregate", "mains", "whole_house",
                                  "whole house", "wholehouse", "whole-house"]:
