@@ -1,11 +1,10 @@
 #!/usr/bin/python
 from __future__ import print_function
 import argparse
-import logging, logging.handlers
+import logging.handlers
 log = logging.getLogger("rfm_ecomanager_logger")
 import time
 import os
-import sys
 import sighandler
 from nanode import Nanode
 from manager import Manager
