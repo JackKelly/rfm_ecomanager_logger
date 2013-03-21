@@ -217,7 +217,13 @@ class Cc_trx(Transmitter):
         super(Cc_trx, self).unpickle(manager)
         log.info("After unplickling " + self.get_name() + "{}".format(self.__dict__))
         self.state = self.__dict__.get('state', 1)
-        self.state_just_changed = self.__dict__.get('state_just_changed', 0)
+        
+    # Override
+    def __getstate__(self):
+        """Used by pickle()"""
+        odict = super(Cc_trx, self).__getstate__()
+        del odict['state_just_changed']
+        return odict        
 
     def switch(self, state):
         """Switch IAM on or off.
