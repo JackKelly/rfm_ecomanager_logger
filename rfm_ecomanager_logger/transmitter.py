@@ -54,7 +54,7 @@ class Transmitter(object):
     
     def unpickle(self, manager):
         self.manager = manager
-        for dummy, sensor in self.sensors.iteritems():
+        for _, sensor in self.sensors.iteritems():
             sensor.update_filename(self)
             sensor.last_logged_timecode = 0
         
@@ -217,7 +217,7 @@ class Cc_trx(Transmitter):
         super(Cc_trx, self).unpickle(manager)
         log.info("After unplickling " + self.get_name() + "{}".format(self.__dict__))
         self.state = self.__dict__.get('state', 1)
-        self.state = self.__dict__.get('state_just_changed', 0)
+        self.state_just_changed = self.__dict__.get('state_just_changed', 0)
 
     def switch(self, state):
         """Switch IAM on or off.
