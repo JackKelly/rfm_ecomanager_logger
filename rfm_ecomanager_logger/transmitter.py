@@ -215,7 +215,6 @@ class Cc_trx(Transmitter):
     # Override
     def unpickle(self, manager):
         super(Cc_trx, self).unpickle(manager)
-        log.info("After unplickling " + self.get_name() + "{}".format(self.__dict__))
         self.state = self.__dict__.get('state', 1)
         self.state_just_changed = False
         
