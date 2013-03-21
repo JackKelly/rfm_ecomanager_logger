@@ -223,7 +223,7 @@ class Cc_trx(Transmitter):
             state (boolean)
         """
         log.info("Switching {:s} to {:d}".format(self.get_name(), state))
-        self.manager.nanode.send_command(str(state), self.id)
+        self.manager.nanode.send_command("{:d}".format(state), self.id)
 
 class Cc_tx(Transmitter):
     
