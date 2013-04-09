@@ -16,8 +16,8 @@ check_return_value ()
 {
     if [ $? -ne 0 ]
     then
-	print_error "ERROR. lm.sh script cannot finish. Please see above for error details.\n"
-	exit $?
+        print_error "ERROR. lm.sh script cannot finish. Please see above for error details.\n"
+        exit $?
     fi
 }
 
@@ -27,15 +27,15 @@ check_directory ()
 {
     if [ -z "$1" ] # -z true if length of string is zero
     then
-	print_error "\n* ERROR: $1 Path is an empty string!\n"
-	exit 1
+        print_error "\n* ERROR: $1 Path is an empty string!\n"
+        exit 1
     else
-	if [ ! -d "$1" ] # -d true if file exists and is a directory
-	then
-	    print_error "\n* ERROR: $1 IS NOT A DIRECTORY\n"
-	    exit 1
-	fi
-    fi    
+        if [ ! -d "$1" ] # -d true if file exists and is a directory
+        then
+            print_error "\n* ERROR: $1 IS NOT A DIRECTORY\n"
+            exit 1
+        fi
+    fi
 }
 
 
@@ -49,9 +49,9 @@ start_process ()
     # Check if it's already running
     pgrep $3 > /dev/null
     if [ $? -eq 0 ]
-    then
-	echo -e "$3 is already running so not re-starting it."
-	return 0
+        then
+        echo -e "$3 is already running so not re-starting it."
+        return 0
     fi
 
     # Start the process
@@ -65,12 +65,12 @@ start_process ()
     pgrep $3 > /dev/null
     if [ $? -eq 0 ]
     then
-	echo "Successfully started $1/$2"
+        echo "Successfully started $1/$2"
     else
-	print_error "ERROR: FAILED TO START $1/$2"
-	tail nohup.out >/dev/stderr
-	echo ""
-	return 1
+        print_error "ERROR: FAILED TO START $1/$2"
+        tail nohup.out >/dev/stderr
+        echo ""
+        return 1
     fi
     return 0
 }
@@ -82,13 +82,13 @@ wait_for_process_to_die ()
     MAX_SECONDS_TO_WAIT=10
     for (( i=0; i<MAX_SECONDS_TO_WAIT; i++ ))
     do
-	pgrep "$1" > /dev/null
-	if [ $? -ne 0 ]
-	then
-	    return 0
-	fi
-	sleep 1 # sleep for 1 second
-	echo "...waiting for $1 to die..."
+        pgrep "$1" > /dev/null
+        if [ $? -ne 0 ]
+        then
+            return 0
+        fi
+        sleep 1 # sleep for 1 second
+        echo "...waiting for $1 to die..."
     done
     return 1
 }
@@ -100,43 +100,43 @@ kill_process ()
     pgrep "$1" > /dev/null
     if [ $? -eq 0 ]
     then
-	echo "$1 is running so attempting to kill it:"
-	echo "/bin/kill $(pgrep "$1")"
-	/bin/kill $(pgrep "$1")
+        echo "$1 is running so attempting to kill it:"
+        echo "/bin/kill $(pgrep "$1")"
+        /bin/kill $(pgrep "$1")
 
-	wait_for_process_to_die "$1"
-	if [ $? -eq 1 ]
-	then
-	    print_error "ERROR: Failed to kill $1. Will try again with '/bin/kill -s KILL'"
-	    /bin/kill -s KILL $(pgrep "$1")
+        wait_for_process_to_die "$1"
+        if [ $? -eq 1 ]
+        then
+            print_error "ERROR: Failed to kill $1. Will try again with '/bin/kill -s KILL'"
+            /bin/kill -s KILL $(pgrep "$1")
 
-	    # check if we succeeded with -s KILL
-	    pgrep "$1" > /dev/null
-	    if [ $? -eq 1 ]
-	    then
-		echo "Successfully killed $1"
-	    else
-		echo "ERROR: Failed to kill $1 using -s KILL"
-		echo "       Perhaps you don't have permission? Try using 'sudo lm stop'"
-	    fi
-	else
-	    echo "Successfull killed $1"
-	fi
+            # check if we succeeded with -s KILL
+            pgrep "$1" > /dev/null
+            if [ $? -eq 1 ]
+            then
+                echo "Successfully killed $1"
+            else
+                echo "ERROR: Failed to kill $1 using -s KILL"
+                echo "       Perhaps you don't have permission? Try using 'sudo lm stop'"
+            fi
+        else
+            echo "Successfull killed $1"
+        fi
     else
-	echo "$1 is not running so no need to kill it."
+        echo "$1 is not running so no need to kill it."
     fi
 
 }
 
 update ()
 {
-	echo "Updating code from github"
-	for (( i=0; i<$length; i++ ))
-	do
-	    echo ""
-	    echo "Updating ${name[$i]}"
-	    cd ${directory[$i]} && git pull
-	done
+    echo "Updating code from github"
+    for (( i=0; i<$length; i++ ))
+    do
+        echo ""
+        echo "Updating ${name[$i]}"
+        cd ${directory[$i]} && git pull
+    done
 }
 
 start ()
@@ -144,15 +144,15 @@ start ()
     start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
     if [ $? -eq 1 ]
     then
-	echo -e "rfm_ecomanager_logger did not start so will not start babysitter!\n"
-	exit 1
+        echo -e "rfm_ecomanager_logger did not start so will not start babysitter!\n"
+        exit 1
     fi
     sleep 1
 
     start_process "$SND_CARD_POWER_METER_DIR" "scripts/record.py" "record.py"	
     if [ $? -eq 1 ]
     then
-	echo "snd_card_power_meter did not start but we will still start babysitter..."
+        echo "snd_card_power_meter did not start but we will still start babysitter..."
     fi
 
     start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
@@ -182,93 +182,93 @@ SND_CARD_POWER_METER_DIR="${directory[3]}"
 case "$1" in # switch on the first command
 
 "update")
-	update
-	;;
+    update
+    ;;
 
 "flash")
-	echo "Flashing Nanode with latest code from github"
+    echo "Flashing Nanode with latest code from github"
 
-	echo "Checking whether rfm_ecomanager_logger is running:"
-	pgrep rfm_ecomanager_ > /dev/null
-	if [ $? -eq 0 ]
-	then
-	    print_error "ERROR: rfm_ecomager_logger is running."
-	    print_error "       Stop it using 'lm stop' and then try 'lm flash' again.\n"
-	    exit 1
-	else
-	    echo "Good. rfm_ecomanager_logger is not running.  Continuing..."
-	fi
+    echo "Checking whether rfm_ecomanager_logger is running:"
+    pgrep rfm_ecomanager_ > /dev/null
+    if [ $? -eq 0 ]
+    then
+        print_error "ERROR: rfm_ecomager_logger is running."
+        print_error "       Stop it using 'lm stop' and then try 'lm flash' again.\n"
+        exit 1
+    else
+        echo "Good. rfm_ecomanager_logger is not running.  Continuing..."
+    fi
 
-	echo "First, updating code from github:"
-	cd "$RFM_EDF_ECOMANAGER_DIR" && git pull
-	check_return_value
+    echo "First, updating code from github:"
+    cd "$RFM_EDF_ECOMANAGER_DIR" && git pull
+    check_return_value
 
-	echo "Running flash.sh script:"
-	./flash.sh
-	check_return_value
-	;;
+    echo "Running flash.sh script:"
+    ./flash.sh
+    check_return_value
+    ;;
 
 "start")
-	start
-	;;
+    start
+    ;;
 
 "boot")
-	update
-	start
-	;;
+    update
+    start
+    ;;
 
 "stop")
-	echo "Stop logging"
-	kill_process "power_babysitte"
-	kill_process "rfm_ecomanager_"
-	kill_process "record.py"y
-	;;
+    echo "Stop logging"
+    kill_process "power_babysitte"
+    kill_process "rfm_ecomanager_"
+    kill_process "record.py"y
+    ;;
 
 "check")
-	echo "Checking whether rfm_ecomanager_logger, power_babysitter"
-	echo "and record.py (snd_card_power_meter) are running..."
-
-	for name in "rfm_ecomanager_" "power_babysitte" "record.py"
-	do
+    echo "Checking whether rfm_ecomanager_logger, power_babysitter"
+    echo "and record.py (snd_card_power_meter) are running..."
+    
+    for name in "rfm_ecomanager_" "power_babysitte" "record.py"
+    do
         echo -e "\n==================="	
-	    echo -e "Checking $name..."
-	    ps -A | grep "$name"
-	    pgrep "$name" > /dev/null
-	    if [ $? -eq 0 ]
-	    then
-		echo "$name is running"
-	    else
-		echo "$name is not running"
-	    fi
-	done
-	;;
+        echo -e "Checking $name..."
+        ps -A | grep "$name"
+        pgrep "$name" > /dev/null
+        if [ $? -eq 0 ]
+        then
+            echo "$name is running"
+        else
+            echo "$name is not running"
+        fi
+    done
+    ;;
 
 "data")
-	check_directory "$DATA_DIR"
-	echo "Displaying data.  Press CTRL-C to stop..."
-	dirs=($(ls $DATA_DIR))
-	dirs_length=${#dirs[@]} # length of array `dirs`
-	last_element_num=$((dirs_length - 1))
-	last_dir="$DATA_DIR/${dirs[$last_element_num]}"
-	echo "Using directory $last_dir"
-	echo ""
-	tail -f $last_dir/*.dat
-	;;
-	
+    check_directory "$DATA_DIR"
+    echo "Displaying data.  Press CTRL-C to stop..."
+    dirs=($(ls $DATA_DIR))
+    dirs_length=${#dirs[@]} # length of array `dirs`
+    last_element_num=$((dirs_length - 1))
+    last_dir="$DATA_DIR/${dirs[$last_element_num]}"
+    echo "Using directory $last_dir"
+    echo ""
+    tail -f $last_dir/*.dat
+    ;;
+
 "edit")
     echo "Editing radioIDs.dat..."
     echo "Checking if rfm_ecomanager_logger is running..."
     pgrep rfm_ecomanager_ > /dev/null
     if [ $? -eq 0 ]
     then
-	print_error "ERROR: rfm_ecomanager_logger is running. Please run 'lm stop' before 'lm edit'."
-	exit 1
+        print_error "ERROR: rfm_ecomanager_logger is running. Please run 'lm stop' before 'lm edit'."
+        exit 1
     else
-	echo "Good: rfm_ecomanager_logger isn't running... starting editing mode..."
-	$RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/rfm_ecomanager_logger.py --edit
+        echo "Good: rfm_ecomanager_logger isn't running... starting editing mode..."
+        $RFM_ECOMANAGER_LOGGER_DIR/rfm_ecomanager_logger/rfm_ecomanager_logger.py --edit
     fi
     ;;
-    
+
 "log")
     echo "=============================================="
     echo "Displaying tail of rfm_ecomanager_logger/*.log:"
@@ -293,28 +293,28 @@ case "$1" in # switch on the first command
     response=${response,,}    # tolower
     if [[ $response =~ ^(yes|y)$ ]]
     then
-	rm -fv $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log* $LOGGER_BASE_DIR/rsync/*.log*
-	rm -rfv $DATA_DIR/*
-	rm -fv $RFM_ECOMANAGER_LOGGER_DIR/radioIDs.pkl
+        rm -fv $RFM_ECOMANAGER_LOGGER_DIR/*.log* $BABYSITTER_DIR/*.log* $LOGGER_BASE_DIR/rsync/*.log*
+        rm -rfv $DATA_DIR/*
+        rm -fv $RFM_ECOMANAGER_LOGGER_DIR/radioIDs.pkl
     else
-	echo "Aborted"
+        echo "Aborted"
     fi
     ;;
 
 *)
-	echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log|boot}'\n"
-	echo -e "Typical usage pattern:"
-	echo -e "  1) Teach the logging system about your sensors using 'lm edit'"
-	echo -e "  2) Start logging using 'lm start'"
-	echo -e "  3) Check that the logging processes really are running with 'lm check'"
-	echo -e "  4) Check the relevant log files with 'lm log'"
-	echo -e "  5) Check that data are coming in using 'lm data'"
-	echo -e "  6) Then, when you've finished logging, use 'lm stop'"
-	echo -e "  7) Update the Nanode's flash with the latest code using 'lm flash'\n"
-	echo -e "\n"
-	echo -e "'boot' runs 'update' and then 'start'."
-	exit 1
-	;;
+    echo -e "Usage: 'lm {edit|update|flash|start|stop|check|data|log|boot}'\n"
+    echo -e "Typical usage pattern:"
+    echo -e "  1) Teach the logging system about your sensors using 'lm edit'"
+    echo -e "  2) Start logging using 'lm start'"
+    echo -e "  3) Check that the logging processes really are running with 'lm check'"
+    echo -e "  4) Check the relevant log files with 'lm log'"
+    echo -e "  5) Check that data are coming in using 'lm data'"
+    echo -e "  6) Then, when you've finished logging, use 'lm stop'"
+    echo -e "  7) Update the Nanode's flash with the latest code using 'lm flash'\n"
+    echo -e "\n"
+    echo -e "'boot' runs 'update' and then 'start'."
+    exit 1
+    ;;
 
 esac # end of case
 
