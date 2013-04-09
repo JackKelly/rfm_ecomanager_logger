@@ -41,6 +41,7 @@ check_directory ()
 
 start_process ()
 # Arguments: 1) directory, 2) file within directory, 3) process name
+# Returns 0 if process is running or 1 if process is not running.
 {
     echo -e "==================="
     echo -e "\nStarting $1/$2..."
@@ -50,7 +51,7 @@ start_process ()
     if [ $? -eq 0 ]
     then
 	echo -e "$3 is already running so not re-starting it."
-	return
+	return 0
     fi
 
     # Start the process
@@ -66,10 +67,12 @@ start_process ()
     then
 	echo "Successfully started $1/$2"
     else
-	print_error "ERROR **** FAILED TO START $1/$2 **********"
+	print_error "ERROR: FAILED TO START $1/$2"
 	tail nohup.out >/dev/stderr
 	echo ""
+	return 1
     fi
+    return 0
 }
 
 wait_for_process_to_die ()
@@ -138,20 +141,21 @@ update ()
 
 start ()
 {
-	start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
-	sleep 1
+    start_process "$RFM_ECOMANAGER_LOGGER_DIR" "rfm_ecomanager_logger/rfm_ecomanager_logger.py" "rfm_ecomanager_"
+    if [ $? -eq 1 ]
+    then
+	echo -e "rfm_ecomanager_logger did not start so will not start babysitter!\n"
+	exit 1
+    fi
+    sleep 1
 
-	echo "Checking the rfm_ecomanager_logger.py really is running..."
-	pgrep rfm_ecomanager_ > /dev/null
-	if [ $? -eq 0 ]
-	then
-	    echo "$name is running"
-	else
-	    print_error "ERROR $name FAILED TO START SO WILL NOT START BABYSITTER!\n"
-	    exit 1
-	fi	
+    start_process "$SND_CARD_POWER_METER_DIR" "scripts/record.py" "record.py"	
+    if [ $? -eq 1 ]
+    then
+	echo "snd_card_power_meter did not start but we will still start babysitter..."
+    fi
 
-	start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
+    start_process "$BABYSITTER_DIR" "./power_babysitter.py" "power_babysitte"
 }
 
 echo ""
@@ -173,7 +177,7 @@ done
 RFM_ECOMANAGER_LOGGER_DIR="${directory[0]}"
 POWERSTATS_DIR="${directory[1]}"
 BABYSITTER_DIR="${directory[2]}"
-SND_CARD_POWER_METER="${directory[3]}"
+SND_CARD_POWER_METER_DIR="${directory[3]}"
 
 case "$1" in # switch on the first command
 
@@ -217,11 +221,14 @@ case "$1" in # switch on the first command
 	echo "Stop logging"
 	kill_process "power_babysitte"
 	kill_process "rfm_ecomanager_"
+	kill_process "record.py"y
 	;;
 
 "check")
-	echo "Checking whether rfm_ecomanager_logger and power_babysitter are running..."
-	for name in "rfm_ecomanager_" "power_babysitte"
+	echo "Checking whether rfm_ecomanager_logger, power_babysitter"
+	echo "and record.py (snd_card_power_meter) are running..."
+
+	for name in "rfm_ecomanager_" "power_babysitte" "record.py"
 	do
         echo -e "\n==================="	
 	    echo -e "Checking $name..."
@@ -263,11 +270,16 @@ case "$1" in # switch on the first command
     ;;
     
 "log")
+    echo "=============================================="
     echo "Displaying tail of rfm_ecomanager_logger/*.log:"
     tail $RFM_ECOMANAGER_LOGGER_DIR/*.log
-    echo ""
+    echo "=============================================="
     echo "Displaying tail of babysitter/*.log:"
     tail $BABYSITTER_DIR/*.log
+    echo "=============================================="
+    echo "Displaying tail of snd_card_power_meter/*.log:"
+    tail $SND_CARD_POWER_METER_DIR/*.log
+    echo "=============================================="
     ;;
 
 "stats")
