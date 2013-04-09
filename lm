@@ -68,6 +68,7 @@ start_process ()
         echo "Successfully started $1/$2"
     else
         print_error "ERROR: FAILED TO START $1/$2"
+        print_error "Printing tail of nohup.out:\n"
         tail nohup.out >/dev/stderr
         echo ""
         return 1
