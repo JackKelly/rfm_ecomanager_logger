@@ -222,7 +222,7 @@ case "$1" in # switch on the first command
     echo "Stop logging"
     kill_process "power_babysitte"
     kill_process "rfm_ecomanager_"
-    kill_process "record.py"y
+    kill_process "record.py"
     ;;
 
 "check")
