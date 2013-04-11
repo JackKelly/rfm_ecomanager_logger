@@ -83,7 +83,8 @@ class Manager(object):
             if not os.path.isdir(self.args.data_directory):
                 if os.path.exists(self.args.data_directory):
                     log.critical("The path specified as the data directory '{}' "
-                                  "is not a directory but is a file. Please try again."
+                                  "is not a directory but is a file."
+                                  " Please try again."
                                   .format(self.args.data_directory))
                     sys.exit(1)
                 else:
@@ -97,19 +98,27 @@ class Manager(object):
                     # Get just the names of the directories within data_dir
                     # Taken from http://stackoverflow.com/a/142535/732596
                     existing_subdirs = os.walk(data_dir).next()[1]
-                    existing_subdirs.sort()
+                    
+                    # Remove any subdirs which contain alphabetic characters
+                    numeric_subdirs = [subdir for subdir in existing_subdirs 
+                                       if not any(char.isalpha() for char in subdir)]
+                    
+                    numeric_subdirs.sort()
                     try:
-                        new_subdir_number = int(existing_subdirs[-1]) + 1
+                        new_subdir_number = int(numeric_subdirs[-1]) + 1
                     except:
                         pass # use default new_subdir_number
                         
                 new_subdir_name = "{:03d}".format(new_subdir_number)
                 self.args.data_directory = data_dir + "/" + new_subdir_name
-                log.info("Creating data directory {}".format(self.args.data_directory))
+                log.info("Creating data directory {}"
+                         .format(self.args.data_directory))
                 os.makedirs(self.args.data_directory)
                     
             else:
-                log.critical("Must set data directory either using environment variable DATA_DIR or command line argument --data-directory")
+                log.critical("Must set data directory either using environment"
+                             " variable DATA_DIR or command line argument"
+                             " --data-directory")
                 sys.exit(1)
                 
     def _restart_nanode(self):
