@@ -49,14 +49,14 @@ class TemplateLabels(object):
     def __init__(self, labels_file):
         self.labels = load_labels_file(labels_file)
 
-    def assimilate_and_get_map(self, source_labels_filename):
+    def assimilate_and_get_map(self, data_dir):
         """
-        If source_labels contains any labels not in self.labels
+        If data_dir/labels.dat contains any labels not in self.labels
         then add those labels to self.labels and return a mapping
         from source labels to template labels.
         
         Args:
-            source_labels_filename (str)
+            data_dir (str)
             
         Returns:
             dict mapping from source labels index to template labels index.
@@ -64,7 +64,10 @@ class TemplateLabels(object):
                 {1: 1,  2: 3,  3: 2}
                 maps source labels 1, 2 and 3 to template labels 1, 3 and 2
         """
-        source_labels = load_labels_file(source_labels_filename)
+        labels_filename = os.path.join(data_dir, 'labels.dat')
+        source_labels = load_labels_file(data_dir)
+        
+        # filter out any labels for data files which don't exist
 
 def get_data_filenames(data_dir):
     """
@@ -101,7 +104,10 @@ def main():
     
     template_labels = TemplateLabels(args.template_labels_filename)
     
-    # TODO: data_directories = list of full directories
+    # TODO: data_directories = list of full directories.
+    # recursive.  For each dir: if it has a labels.dat file then
+    # it's a data dir.  Else if it contains a directory the recurse
+    # through the dir structure.
     
     # First find the correct ordering for the datasets:
     datasets = []
@@ -113,9 +119,8 @@ def main():
     check_not_overlapping(datasets)
     
     # Now merge the datasets
-    for dataset in datasets:
-        labels_filename = os.path.join(dataset.data_dir, 'labels.dat')
-        labels_map = template_labels.assimilate_and_get_map(labels_filename)
+    for dataset in datasets:        
+        labels_map = template_labels.assimilate_and_get_map(dataset.data_dir)
         
         for data_filename in get_data_filenames(dataset.data_dir):
             input_channel = get_channel_from_filename(data_filename)
