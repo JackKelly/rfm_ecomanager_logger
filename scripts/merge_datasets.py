@@ -2,6 +2,11 @@
 from __future__ import print_function, division
 import argparse, os
 
+# TODO:
+# * allow template-labels-filename to including alternative names
+#   for the same channel.  e.g.
+#   1 aggregate %OR agg
+
 def setup_argparser():
     # Process command line _args
     parser = argparse.ArgumentParser(description='Merge datasets')
@@ -38,16 +43,55 @@ def get_timestamp_range(data_dir):
 def load_labels_file(labels_filename):
     """
     Args:
-        labels_filename (str)
+        labels_filename (str): including full path
         
     Returns:
         dict mapping channel number to label
     """
+    with open(labels_filename) as labels_file:
+        lines = labels_file.readlines()
+    
+    labels = {}
+    for line in lines:
+        line = line.partition(' ')
+        labels[int(line[0])] = line[2].strip()
+        
+    print("Loaded {} lines from {}".format(len(labels), labels_filename))
+        
+    return labels
+    
+
+def split_label_synonyms(labels):
+    """
+    Args:
+        labels (dict): mapping chan num (int) to label (string)
+    Returns:
+        dict mapping channel num to a list of strings. e.g.:
+        {1: ['aggregate', 'agg']}
+    """
+    for key, item in labels.iteritems():
+        synonyms = [label.strip() for label in item.split('/')]
+        labels[key] = synonyms
+        
+    return labels
+
 
 class TemplateLabels(object):
+    """
+    Attributes:
+        label_to_chan (dict): maps a single string to a channel number (int).
+                              Synonyms map to the same chan number.
+    """
     
-    def __init__(self, labels_file):
-        self.labels = load_labels_file(labels_file)
+    def __init__(self, labels_filename):
+        template_labels = load_labels_file(labels_filename)
+        template_labels = split_label_synonyms(template_labels)
+
+        # Create a mapping from chan number to label
+        self.label_to_chan = {}
+        for chan, labels in template_labels.iteritems():
+            for label in labels:
+                self.label_to_chan[label] = chan
 
     def assimilate_and_get_map(self, data_dir):
         """
@@ -65,9 +109,25 @@ class TemplateLabels(object):
                 maps source labels 1, 2 and 3 to template labels 1, 3 and 2
         """
         labels_filename = os.path.join(data_dir, 'labels.dat')
-        source_labels = load_labels_file(data_dir)
+        source_labels = load_labels_file(labels_filename)
         
-        # filter out any labels for data files which don't exist
+        source_to_template = {} # what we return
+        
+        for chan, label in source_labels.iteritems():
+            # filter out any labels for data files which don't exist
+            chan_filename = os.path.join(data_dir, 
+                                         "channel_{:d}.dat".format(chan))
+            if not os.path.exists(chan_filename):
+                continue
+        
+            # Figure out if any items in source_labels are not in self.labels
+            if not self.label_to_chan.has_key(label):
+                self.label_to_chan[label] = max(self.label_to_chan.values())+1
+                print("added", label, "as", self.label_to_chan[label])
+                
+            source_to_template[chan] = self.label_to_chan[label]
+            
+        return source_to_template
 
 def get_data_filenames(data_dir):
     """

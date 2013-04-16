@@ -3,12 +3,11 @@ from __future__ import print_function
 import argparse
 import logging.handlers
 log = logging.getLogger("rfm_ecomanager_logger")
-import time
-import os
-import sighandler
+import time, os, sighandler, inspect
 from nanode import Nanode
 from manager import Manager
 
+FILE_PATH = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 def setup_argparser():
     # Process command line _args
@@ -61,7 +60,8 @@ def setup_logger(args):
     logger.addHandler(ch)
     
     # create file handler
-    logfile = os.path.dirname(__file__) + "/../rfm_ecomanager_logger.log"     
+    
+    logfile = os.path.join(FILE_PATH, "..", "rfm_ecomanager_logger.log")     
     fh = logging.handlers.RotatingFileHandler(logfile, maxBytes=1E7, backupCount=20)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)

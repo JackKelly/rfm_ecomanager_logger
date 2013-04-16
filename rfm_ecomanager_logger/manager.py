@@ -5,9 +5,11 @@ import time
 import sys
 import logging
 log = logging.getLogger("rfm_ecomanager_logger")
-import os
+import os, inspect
 from nanode import NanodeRestart, NanodeTooManyRetries, Nanode, NanodeDataWaiting
 from input_with_cancel import *
+
+FILE_PATH = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 class Manager(object):
     """ 
@@ -20,7 +22,7 @@ class Manager(object):
       
     """
     
-    PICKLE_FILE = os.path.dirname(os.path.realpath(__file__)) + "/../radioIDs.pkl"
+    PICKLE_FILE = os.path.join(FILE_PATH, "..", "radioIDs.pkl")
     
     def __init__(self, nanode, args):
         self.nanode = nanode
