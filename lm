@@ -121,7 +121,7 @@ kill_process ()
                 echo "       Perhaps you don't have permission? Try using 'sudo lm stop'"
             fi
         else
-            echo "Successfull killed $1"
+            echo "Successfully killed $1"
         fi
     else
         echo "$1 is not running so no need to kill it."
