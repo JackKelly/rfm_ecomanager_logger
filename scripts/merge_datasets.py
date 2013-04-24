@@ -177,6 +177,9 @@ class TemplateLabels(object):
         return source_to_template
     
     def write_to_disk(self, dir):
+        """
+        Write a labels.dat file to dir.
+        """
         pass
         # TODO
 
