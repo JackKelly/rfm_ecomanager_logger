@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function, division
-import argparse, os
+import argparse, os, sys
 
 def setup_argparser():
     # Process command line _args
@@ -41,7 +41,10 @@ USAGE
 
 
 class Dataset(object):
-    def __init__(self, data_dir):
+    def __init__(self, data_dir=None):
+        if data_dir is None:
+            return
+        
         first_timestamp, last_timestamp = get_timestamp_range(data_dir)
         self.first_timestamp = first_timestamp
         self.last_timestamp = last_timestamp
@@ -58,18 +61,14 @@ def get_timestamp_range(data_dir):
         
     Returns:
         first_timestamp (float), last_timestamp (float)
-    """
-    all_filenames = os.walk(data_dir).next()[2]
-    data_filenames = [f for f in all_filenames
-                      if f.startswith('channel_') and f.endswith('.dat')]
-    
+    """    
     first_timestamp = None
     last_timestamp = None
     
     def get_timestamp_from_line(line):
         return float(line.split(' ')[0])
     
-    for data_filename in data_filenames:
+    for data_filename in get_data_filenames(data_dir):
         with open(os.path.join(data_dir, data_filename)) as fh:
             first_line = next(fh).decode()
             file_first_timestamp = get_timestamp_from_line(first_line)
@@ -175,6 +174,7 @@ class TemplateLabels(object):
             
         return source_to_template
 
+
 def get_data_filenames(data_dir):
     """
     Args:
@@ -182,8 +182,14 @@ def get_data_filenames(data_dir):
         
     Returns:
         list of strings representing .dat filenames, including .dat suffix;
-        not including the directory.
+        not including the directory.  Only returns files of the form
+        channel_??.dat
     """
+    all_filenames = os.walk(data_dir).next()[2]
+    data_filenames = [f for f in all_filenames
+                      if f.startswith('channel_') and f.endswith('.dat')]
+    return data_filenames
+
 
 def get_channel_from_filename(data_filename):
     """
@@ -239,6 +245,18 @@ def get_all_data_dirs(base_data_dir):
             processed_subdirs.extend(get_all_data_dirs(full_subdir))
 
     return processed_subdirs
+
+
+def check_not_overlapping(datasets):
+    if not datasets:
+        return
+    
+    last_timestamp = datasets[0].last_timestamp
+    for dataset in datasets[1:]:
+        if last_timestamp > dataset.first_timestamp:
+            sys.exit("ERROR: {} starts before the previous dataset finishes!"
+                     .format(dataset.data_dir))
+        last_timestamp = dataset.last_timestamp
 
 
 def main():

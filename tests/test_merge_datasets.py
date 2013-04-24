@@ -92,7 +92,26 @@ class TestMergeDatasets(unittest.TestCase):
         DIR = os.path.join(BASE_TEST_DATA_DIR, '001')
         first_timestamp, last_timestamp = md.get_timestamp_range(DIR)
         self.assertEqual(first_timestamp, 1360396444.0)
-        self.assertEqual(last_timestamp, 1360400145.0)                    
+        self.assertEqual(last_timestamp, 1360400145.0)            
+        
+    def test_check_not_overlapping(self):
+        ds1 = md.Dataset()
+        ds1.first_timestamp = 1
+        ds1.last_timestamp = 100
+        ds1.data_dir = '1'
+        
+        ds2 = md.Dataset()
+        ds2.first_timestamp = 101
+        ds2.last_timestamp = 200
+        ds2.data_dir = '2'
+        
+        ds3 = md.Dataset()
+        ds3.first_timestamp = 200
+        ds3.last_timestamp = 300
+        ds3.data_dir = '3'
+        
+        datasets = [ds1, ds2, ds3]
+        md.check_not_overlapping(datasets)
 
 if __name__ == "__main__":
     unittest.main()
