@@ -29,13 +29,15 @@ USAGE
    for the same appliance.
 """                                     )
 
-    parser.add_argument('base-data-dir')
+    parser.add_argument('base_data_dir')
 
     parser.add_argument('--template-labels-filename', type=str,
                         help='The labels file to attempt to conform all input'
                         ' datasets to.', required=True)
     
     parser.add_argument('--output-dir', type=str, required=True)
+    
+    parser.add_argument('--dry-run', action='store_true')
         
     return parser.parse_args()
 
@@ -173,6 +175,10 @@ class TemplateLabels(object):
             source_to_template[chan] = self.label_to_chan[label]
             
         return source_to_template
+    
+    def write_to_disk(self, dir):
+        pass
+        # TODO
 
 
 def get_data_filenames(data_dir):
@@ -273,6 +279,7 @@ def main():
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
     
     check_not_overlapping(datasets)
+    print("Good: datasets are not overlapping")
     
     # Now merge the datasets
     for dataset in datasets:        
@@ -285,9 +292,12 @@ def main():
             output_filename = os.path.join(args.output_dir,
                                            'channel_{:d}.dat'
                                            .format(output_channel))
-            append_files(input_filename, output_filename)
+            print("appending", input_filename, "to end of", output_filename)
+            if not args.dry_run:
+                append_files(input_filename, output_filename)
 
-    template_labels.write_to_disk(args.output_dir)
+    if not args.dry_run:
+        template_labels.write_to_disk(args.output_dir)
 
 if __name__=="__main__":
     main()
