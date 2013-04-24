@@ -71,10 +71,15 @@ def get_timestamp_range(data_dir):
         return float(line.split(' ')[0])
     
     for data_filename in get_data_filenames(data_dir):
-        with open(os.path.join(data_dir, data_filename)) as fh:
+        full_filename = os.path.join(data_dir, data_filename)
+        print("opening", full_filename) 
+        with open(full_filename) as fh:
             first_line = next(fh).decode()
             file_first_timestamp = get_timestamp_from_line(first_line)
-            fh.seek(-1024, 2)
+            try:
+                fh.seek(-1024, 2)
+            except IOError:
+                pass
             last_line = fh.readlines()[-1].decode()
             file_last_timestamp = get_timestamp_from_line(last_line)
         
@@ -293,6 +298,16 @@ def main():
     for data_dir in data_directories:
         datasets.append(Dataset(data_dir))
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
+    
+    print("Proposed order :")
+    for dataset in datasets:
+        print("    ", dataset.data_dir)
+        print("       start =", dataset.first_timestamp)
+        print("         end =", dataset.last_timestamp)
+        if dataset.last_timestamp and dataset.first_timestamp:
+            print("    duration =", 
+                  dataset.last_timestamp - dataset.first_timestamp) 
+        print("")
     
     check_not_overlapping(datasets)
     print("Good: datasets are not overlapping")
