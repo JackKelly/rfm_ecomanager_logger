@@ -2,30 +2,51 @@
 from __future__ import print_function, division
 import argparse, os
 
-# TODO:
-# * allow template-labels-filename to including alternative names
-#   for the same channel.  e.g.
-#   1 aggregate %OR agg
-
 def setup_argparser():
     # Process command line _args
-    parser = argparse.ArgumentParser(description='Merge datasets')
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     epilog=
+"""
+DESCRIPTION
+===========
+
+rfm_ecomanager_logger creates a new, numerically labelled data directory
+every time it is run.  merge_datasets.py aims to merge these datasets into
+a single dataset directory.
+
+USAGE
+=====
+
+1. Create a labels.dat file for your target data directory.  This
+   file can include multiple synonyms on each line, separated by a /
    
+   For example:
+     1 aggregate / agg / mains
+     2 toaster
+     3 tv / television
+     
+   Specifying synonyms is useful if the input datasets use different labels
+   for the same appliance.
+"""                                     )
+
+    parser.add_argument('base-data-dir')
+
     parser.add_argument('--template-labels-filename', type=str,
                         help='The labels file to attempt to conform all input'
-                        ' datasets to.')
+                        ' datasets to.', required=True)
     
-    parser.add_argument('--output-dir', type=str)
+    parser.add_argument('--output-dir', type=str, required=True)
         
     return parser.parse_args()
 
 
 class Dataset(object):
-    def __init__(self, first_timestamp, last_timestamp, data_dir):
+    def __init__(self, data_dir):
+        first_timestamp, last_timestamp = get_timestamp_range(data_dir)
         self.first_timestamp = first_timestamp
         self.last_timestamp = last_timestamp
         self.data_dir = data_dir
-        
+
 
 def get_timestamp_range(data_dir):
     """
@@ -55,7 +76,7 @@ def load_labels_file(labels_filename):
     for line in lines:
         line = line.partition(' ')
         labels[int(line[0])] = line[2].strip()
-        
+
     print("Loaded {} lines from {}".format(len(labels), labels_filename))
         
     return labels
@@ -158,22 +179,42 @@ def append_data(input_filename, output_filename):
         input_filename, output_filename (str)
     """
 
+def get_all_data_dirs(base_data_dir):
+    """Returns a list of all full directories which contains a labels.dat
+    file, starting from base_data_dir and recursing downwards through the
+    directory tree.
+    """
+
+    # Recursive.  If base_data_dir has a labels.dat file then
+    # it's a data dir.  Else recurse through the dir structure.
+    labels_filename = os.path.join(base_data_dir, 'labels.dat')
+    processed_subdirs = []
+    if os.path.exists(labels_filename):
+        processed_subdirs.append(base_data_dir)
+    else:
+        # Recurse through any directories which don't have a labels.dat
+
+        # Get just the names of the directories within base_data_dir
+        # Taken from http://stackoverflow.com/a/142535/732596
+        subdirs = os.walk(base_data_dir).next()[1]
+        for subdir in subdirs:
+            full_subdir = os.path.join(base_data_dir, subdir)                
+            processed_subdirs.extend(get_all_data_dirs(full_subdir))
+
+    return processed_subdirs
+
 
 def main():
     args = setup_argparser()
     
     template_labels = TemplateLabels(args.template_labels_filename)
     
-    # TODO: data_directories = list of full directories.
-    # recursive.  For each dir: if it has a labels.dat file then
-    # it's a data dir.  Else if it contains a directory the recurse
-    # through the dir structure.
+    data_directories = get_all_data_dirs(args.base_data_dir)
     
     # First find the correct ordering for the datasets:
     datasets = []
     for data_dir in data_directories:
-        first_timestamp, last_timestamp = get_timestamp_range(data_dir)
-        datasets.append(Dataset(first_timestamp, last_timestamp, data_dir))
+        datasets.append(Dataset(data_dir))
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
     
     check_not_overlapping(datasets)

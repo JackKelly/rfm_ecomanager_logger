@@ -9,6 +9,7 @@ if SCRIPTS_SUBFOLDER not in sys.path:
 import merge_datasets as md
 
 BASE_TEST_DATA_DIR = os.path.join(FILE_PATH, 'test_data')
+TARGET_LABELS_FILENAME = os.path.join(FILE_PATH, 'target_labels', 'labels.dat')
 
 class TestMergeDatasets(unittest.TestCase):
     
@@ -37,8 +38,7 @@ class TestMergeDatasets(unittest.TestCase):
         self.assertEqual(labels[5], ['this and that and those'])
         
     def test_template_labels_init(self):
-        labels_filename = os.path.join(BASE_TEST_DATA_DIR, 'labels.dat')
-        tl = md.TemplateLabels(labels_filename)
+        tl = md.TemplateLabels(TARGET_LABELS_FILENAME)
         self.assertEqual(tl.label_to_chan['aggregate'], 1)
         self.assertEqual(tl.label_to_chan['agg'], 1)
         self.assertEqual(tl.label_to_chan['laptop'], 4)
@@ -47,7 +47,7 @@ class TestMergeDatasets(unittest.TestCase):
         self.assertEqual(tl.label_to_chan['coffee'], 17)
         
     def test_template_labels_assimilate_and_get_map(self):
-        labels_filename = os.path.join(BASE_TEST_DATA_DIR, 'labels.dat')
+        labels_filename = TARGET_LABELS_FILENAME
         tl = md.TemplateLabels(labels_filename)
         
         source_data_dir = os.path.join(BASE_TEST_DATA_DIR, '001')
@@ -57,6 +57,19 @@ class TestMergeDatasets(unittest.TestCase):
         self.assertEqual(stt[1], 1) 
         self.assertEqual(stt[16], 15) # breadmaker
         self.assertEqual(stt[18], 19) # adsl_router
+
+    def test_get_all_data_dirs(self):
+        data_dirs = md.get_all_data_dirs(BASE_TEST_DATA_DIR)
+        
+        correct_data_dirs = ['001', '002', 
+                             'dir_with_more_data_dirs/003', 
+                             'dir_with_more_data_dirs/003']
+        
+        correct_data_dirs = [os.path.join(BASE_TEST_DATA_DIR, d) 
+                             for d in correct_data_dirs]
+        
+        self.assertEqual(data_dirs.sort(), correct_data_dirs.sort())
+        
 
 if __name__ == "__main__":
     unittest.main()
