@@ -50,15 +50,40 @@ class Dataset(object):
 
 def get_timestamp_range(data_dir):
     """
+    Opens all channel_?.dat files in data_dir and finds the first and last
+    timestamps across all dat files. 
+    
     Args:
         data_dir (str)
         
     Returns:
         first_timestamp (float), last_timestamp (float)
     """
+    all_filenames = os.walk(data_dir).next()[2]
+    data_filenames = [f for f in all_filenames
+                      if f.startswith('channel_') and f.endswith('.dat')]
     
-    # For each channel_??.dat file:
-    #  Load first line, load last line...
+    first_timestamp = None
+    last_timestamp = None
+    
+    def get_timestamp_from_line(line):
+        return float(line.split(' ')[0])
+    
+    for data_filename in data_filenames:
+        with open(os.path.join(data_dir, data_filename)) as fh:
+            first_line = next(fh).decode()
+            file_first_timestamp = get_timestamp_from_line(first_line)
+            fh.seek(-1024, 2)
+            last_line = fh.readlines()[-1].decode()
+            file_last_timestamp = get_timestamp_from_line(last_line)
+        
+        if first_timestamp is None or file_first_timestamp < first_timestamp:
+            first_timestamp = file_first_timestamp
+
+        if last_timestamp is None or file_last_timestamp > last_timestamp:
+            last_timestamp = file_last_timestamp
+
+    return first_timestamp, last_timestamp
 
 
 def load_labels_file(labels_filename):

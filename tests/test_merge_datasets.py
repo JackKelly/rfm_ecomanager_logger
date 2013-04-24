@@ -87,7 +87,12 @@ class TestMergeDatasets(unittest.TestCase):
 
         shutil.move(os.path.join(DIR, 'apendee_backup.dat'),
                     os.path.join(DIR, 'apendee.dat'))
-                    
+        
+    def test_get_timestamp_range(self):
+        DIR = os.path.join(BASE_TEST_DATA_DIR, '001')
+        first_timestamp, last_timestamp = md.get_timestamp_range(DIR)
+        self.assertEqual(first_timestamp, 1360396444.0)
+        self.assertEqual(last_timestamp, 1360400145.0)                    
 
 if __name__ == "__main__":
     unittest.main()
