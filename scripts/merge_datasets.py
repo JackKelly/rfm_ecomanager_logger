@@ -171,13 +171,25 @@ def get_channel_from_filename(data_filename):
     channel_str = data_filename.lstrip('channel_').rstrip('.dat')
     return int(channel_str)
 
-def append_data(input_filename, output_filename):
+
+def append_files(input_filename, output_filename):
     """
     Appends input_filename onto the end of output_filename.
     
     Args:
-        input_filename, output_filename (str)
+        input_filename, output_filename (str): full paths to files
     """
+    input_file = open(input_filename, 'r')    
+    output_file = open(output_filename, 'a')
+    while True:
+        data = input_file.readline()
+        if data and data.strip():
+            output_file.write(data)
+        else:
+            break
+    input_file.close()
+    output_file.close()
+
 
 def get_all_data_dirs(base_data_dir):
     """Returns a list of all full directories which contains a labels.dat
@@ -230,7 +242,7 @@ def main():
             output_filename = os.path.join(args.output_dir,
                                            'channel_{:d}.dat'
                                            .format(output_channel))
-            append_data(input_filename, output_filename)
+            append_files(input_filename, output_filename)
 
     template_labels.write_to_disk(args.output_dir)
 

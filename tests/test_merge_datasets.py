@@ -1,4 +1,4 @@
-import unittest, os, sys, inspect
+import unittest, os, sys, inspect, shutil
 
 # Hack to allow us to import ../scripts/merge_datasets.py
 # Take from http://stackoverflow.com/a/6098238/732596
@@ -70,6 +70,24 @@ class TestMergeDatasets(unittest.TestCase):
         
         self.assertEqual(data_dirs.sort(), correct_data_dirs.sort())
         
+
+    def test_append_data(self):
+        DIR = os.path.join(BASE_TEST_DATA_DIR, 'append_data_test_fodder')
+        shutil.copyfile(os.path.join(DIR, 'apendee.dat'),
+                        os.path.join(DIR, 'apendee_backup.dat') )
+
+        md.append_files(os.path.join(DIR, 'to_append.dat'),
+                       os.path.join(DIR, 'apendee.dat'))
+        
+        f = open(os.path.join(DIR, 'apendee.dat'), 'r')
+        lines = f.readlines()
+        f.close()
+        
+        self.assertEqual(lines, ['1 1.0\n', '2 2.0\n', '3 3.0\n', '4 4.0\n'])
+
+        shutil.move(os.path.join(DIR, 'apendee_backup.dat'),
+                    os.path.join(DIR, 'apendee.dat'))
+                    
 
 if __name__ == "__main__":
     unittest.main()
