@@ -46,6 +46,24 @@ class TestMergeDatasets(unittest.TestCase):
         self.assertEqual(tl.label_to_chan['television'], 7)
         self.assertEqual(tl.label_to_chan['coffee'], 17)
         
+        self.assertEqual(tl.synonym_to_primary['agg'], 'aggregate')
+        
+        return tl
+    
+    def test_write_to_disk(self):
+        tl = self.test_template_labels_assimilate_and_get_map()
+        tl.write_to_disk(BASE_TEST_DATA_DIR)
+        labels_filename = os.path.join(BASE_TEST_DATA_DIR, 'labels.dat')
+        labels_dict = md.load_labels_file(labels_filename)
+        os.remove(labels_filename)        
+        correct_dict = {1: 'aggregate', 2: 'boiler', 3: 'solar', 4: 'laptop',
+                        5: 'washing_machine', 6: 'dishwasher', 7: 'tv', 
+                        8: 'kitchen_lights', 9: 'htpc', 10: 'kettle', 
+                        11: 'toaster', 12: 'fridge', 13: 'microwave', 
+                        14: 'lcd_office', 15: 'breadmaker', 16: 'hifi_office', 
+                        17: 'coffee', 18: 'amp_livingroom', 19: 'adsl_router'}
+        self.assertEqual(labels_dict, correct_dict)
+        
     def test_template_labels_assimilate_and_get_map(self):
         labels_filename = TARGET_LABELS_FILENAME
         tl = md.TemplateLabels(labels_filename)
@@ -57,6 +75,8 @@ class TestMergeDatasets(unittest.TestCase):
         self.assertEqual(stt[1], 1) 
         self.assertEqual(stt[16], 15) # breadmaker
         self.assertEqual(stt[18], 19) # adsl_router
+        
+        return tl
 
     def test_get_all_data_dirs(self):
         data_dirs = md.get_all_data_dirs(BASE_TEST_DATA_DIR)

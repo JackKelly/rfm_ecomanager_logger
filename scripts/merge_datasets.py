@@ -128,6 +128,10 @@ class TemplateLabels(object):
     Attributes:
         label_to_chan (dict): maps a single string to a channel number (int).
                               Synonyms map to the same chan number.
+                              
+        synonym_to_primary (dict): maps secondary synonyms to primary label
+                              (primary label = the one used in the target
+                               label.dat file)
     """
     
     def __init__(self, labels_filename):
@@ -136,9 +140,12 @@ class TemplateLabels(object):
 
         # Create a mapping from chan number to label
         self.label_to_chan = {}
+        self.synonym_to_primary = {}
         for chan, labels in template_labels.iteritems():
             for label in labels:
                 self.label_to_chan[label] = chan
+            for label in labels[1:]:
+                self.synonym_to_primary[label] = labels[0]
 
     def assimilate_and_get_map(self, data_dir):
         """
@@ -176,12 +183,18 @@ class TemplateLabels(object):
             
         return source_to_template
     
-    def write_to_disk(self, dir):
+    def write_to_disk(self, data_dir):
         """
-        Write a labels.dat file to dir.
+        Write a labels.dat file to data_dir.
         """
-        pass
-        # TODO
+        # Assemble a dict mapping chan number to label
+        chan_to_label = {}
+        for label, chan in self.label_to_chan.iteritems():
+            chan_to_label[chan] = self.synonym_to_primary.get(label, label)
+        
+        with open(os.path.join(data_dir, 'labels.dat'), 'w') as fh:
+            for chan in sorted(chan_to_label.iterkeys()):
+                fh.write('{} {}\n'.format(chan, chan_to_label[chan]))
 
 
 def get_data_filenames(data_dir):
