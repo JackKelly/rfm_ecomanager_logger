@@ -67,20 +67,33 @@ def get_timestamp_range(data_dir):
     first_timestamp = None
     last_timestamp = None
     
+    MIN_FILESIZE = 13 # a single line of data is at least 13 bytes
+    
     def get_timestamp_from_line(line):
         return float(line.split(' ')[0])
     
     for data_filename in get_data_filenames(data_dir):
         full_filename = os.path.join(data_dir, data_filename)
+        file_size = os.path.getsize(full_filename)
+        if file_size < MIN_FILESIZE:
+            print("WARNING: file does not contain enough data:",full_filename)
+            continue
         print("opening", full_filename) 
         with open(full_filename) as fh:
-            first_line = next(fh).decode()
+            first_line = fh.readline()
             file_first_timestamp = get_timestamp_from_line(first_line)
-            try:
-                fh.seek(-1024, 2)
-            except IOError:
-                pass
-            last_line = fh.readlines()[-1].decode()
+            
+            if file_size > MIN_FILESIZE*2:
+                # If the file is sufficiently large then
+                # seek to the end of the file minus two lines                
+                fh.seek(-MIN_FILESIZE*2, 2)
+                
+            last_lines = fh.readlines()
+            if last_lines: 
+                last_line = last_lines[-1]
+            else:
+                last_line = first_line
+ 
             file_last_timestamp = get_timestamp_from_line(last_line)
         
         if first_timestamp is None or file_first_timestamp < first_timestamp:
