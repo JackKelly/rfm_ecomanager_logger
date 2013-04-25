@@ -113,13 +113,18 @@ def load_labels_file(labels_filename):
     Returns:
         dict mapping channel number to label
     """
+    print("Opening", labels_filename)
+    
     with open(labels_filename) as labels_file:
         lines = labels_file.readlines()
     
     labels = {}
     for line in lines:
-        line = line.partition(' ')
-        labels[int(line[0])] = line[2].strip()
+        split_line = line.partition(' ')
+        try:
+            labels[int(split_line[0])] = split_line[2].strip()
+        except ValueError:
+            print("ERROR reading line from labels.dat: '", line, "'", sep="")
 
     print("Loaded {} lines from {}".format(len(labels), labels_filename))
         
