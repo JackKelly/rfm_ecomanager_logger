@@ -59,7 +59,7 @@ def init_logger(log_filename):
     log.addHandler(ch)
 
     # create file handler (fh) for babysitter.log
-    fh = logging.FileHandler(log_filename)
+    fh = logging.FileHandler(log_filename, mode='w')
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(ch_formatter)    
     log.addHandler(fh)
@@ -101,7 +101,6 @@ def get_timestamp_range(data_dir):
         if file_size < MIN_FILESIZE:
             log.warn("file does not contain enough data: " + full_filename)
             continue
-        log.debug("opening: " + full_filename) 
         with open(full_filename) as fh:
             first_line = fh.readline()
             file_first_timestamp = get_timestamp_from_line(first_line)
@@ -136,8 +135,6 @@ def load_labels_file(labels_filename):
     Returns:
         dict mapping channel number to label
     """
-    log.debug("opening labels file: " + labels_filename)
-    
     with open(labels_filename) as labels_file:
         lines = labels_file.readlines()
     
@@ -149,7 +146,7 @@ def load_labels_file(labels_filename):
         except ValueError:
             log.warn("unprocessed line from labels.dat: '" + line + "'")
 
-    log.info("Loaded {} lines from {}".format(len(labels), labels_filename))
+    log.debug("Loaded {} lines from {}".format(len(labels), labels_filename))
         
     return labels
     
@@ -218,6 +215,7 @@ class TemplateLabels(object):
             chan_filename = os.path.join(data_dir, 
                                          "channel_{:d}.dat".format(chan))
             if not os.path.exists(chan_filename):
+                log.warn(chan_filename + " does not exist")
                 continue
         
             # Figure out if any items in source_labels are not in self.labels
@@ -368,7 +366,7 @@ def main():
             raise
     
     # Now merge the datasets
-    for dataset in datasets:        
+    for dataset in datasets:
         labels_map = template_labels.assimilate_and_get_map(dataset.data_dir)
         
         for data_filename in get_data_filenames(dataset.data_dir):
@@ -378,7 +376,7 @@ def main():
             output_filename = os.path.join(args.output_dir,
                                            'channel_{:d}.dat'
                                            .format(output_channel))
-            log.info("appending " + input_filename + 
+            log.debug("appending " + input_filename + 
                      " to end of " + output_filename)
             if not args.dry_run:
                 append_files(input_filename, output_filename)
