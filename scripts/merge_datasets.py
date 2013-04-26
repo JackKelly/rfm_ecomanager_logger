@@ -355,6 +355,18 @@ def main():
     check_not_overlapping(datasets)
     log.info("Good: datasets are not overlapping")
     
+    # Remove all the old files in the output dir
+    files_to_delete = [f for f in os.listdir(args.output_dir) 
+                       if f.endswith('.dat')] 
+    log.info("Deleting {} old files in {}"
+             .format(len(files_to_delete), args.output_dir))    
+    for filename in files_to_delete:
+        try:
+            os.remove(os.path.join(args.output_dir, filename))
+        except Exception as e:
+            log.warn(str(e))
+            raise
+    
     # Now merge the datasets
     for dataset in datasets:        
         labels_map = template_labels.assimilate_and_get_map(dataset.data_dir)
