@@ -299,7 +299,14 @@ def get_all_data_dirs(base_data_dir):
     labels_filename = os.path.join(base_data_dir, 'labels.dat')
     processed_subdirs = []
     if os.path.exists(labels_filename):
-        processed_subdirs.append(base_data_dir)
+        # make sure there is at least one channel_* file
+        channel_files = [f for f in os.listdir(base_data_dir) 
+                         if f.startswith('channel_') and
+                         os.path.getsize(os.path.join(base_data_dir, f)) > 12]
+        if channel_files:
+            processed_subdirs.append(base_data_dir)
+        else:
+            log.warn(base_data_dir + " contains no valid channel_??.dat files")
     else:
         # Recurse through any directories which don't have a labels.dat
 
