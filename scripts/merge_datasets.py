@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function, division
-import argparse, os, sys
+import argparse, os, sys, datetime
 import logging.handlers
 log = logging.getLogger("merge_datasets")
 
@@ -346,15 +346,19 @@ def main():
     for data_dir in data_directories:
         datasets.append(Dataset(data_dir))
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
-    
+        
     log.info("Proposed order :")
     for dataset in datasets:
         log.info("     " + dataset.data_dir)
-        log.info("       start = {}".format(dataset.first_timestamp))
-        log.info("         end = {}".format(dataset.last_timestamp))
-        if dataset.last_timestamp and dataset.first_timestamp:
-            log.info("    duration = {}" 
-                     .format(dataset.last_timestamp - dataset.first_timestamp)) 
+        start_dt = datetime.datetime.fromtimestamp(dataset.first_timestamp)
+        last_dt = datetime.datetime.fromtimestamp(dataset.last_timestamp)
+        date_format = '%d/%m/%Y %H:%M:%S'
+        log.info("       start = " + start_dt.strftime(date_format))
+        log.info("         end = " + last_dt.strftime(date_format))
+        log.info("    duration = {}" 
+                 .format(last_dt - start_dt))
+        labels = load_labels_file(os.path.join(dataset.data_dir, 'labels.dat'))
+        log.info("      labels = {}".format(labels))
         log.info("")
     
     check_not_overlapping(datasets)
