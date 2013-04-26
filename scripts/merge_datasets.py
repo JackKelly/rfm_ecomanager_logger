@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from __future__ import print_function, division
 import argparse, os, sys
+import logging.handlers
+log = logging.getLogger("merge_datasets")
 
 def setup_argparser():
     # Process command line _args
@@ -28,7 +30,7 @@ USAGE
    Specifying synonyms is useful if the input datasets use different labels
    for the same appliance.
 """                                     )
-
+ 
     parser.add_argument('base_data_dir')
 
     parser.add_argument('--template-labels-filename', type=str,
@@ -40,6 +42,27 @@ USAGE
     parser.add_argument('--dry-run', action='store_true')
         
     return parser.parse_args()
+
+
+def init_logger(log_filename):
+    log.setLevel(logging.DEBUG)
+
+    # date formatting
+    datefmt = "%y-%m-%d %H:%M:%S"
+
+    # create console handler (ch) for stdout
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch_formatter = logging.Formatter('%(asctime)s %(levelname)s '
+                        '%(message)s', datefmt=datefmt)
+    ch.setFormatter(ch_formatter)
+    log.addHandler(ch)
+
+    # create file handler (fh) for babysitter.log
+    fh = logging.FileHandler(log_filename)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(ch_formatter)    
+    log.addHandler(fh)
 
 
 class Dataset(object):
@@ -76,9 +99,9 @@ def get_timestamp_range(data_dir):
         full_filename = os.path.join(data_dir, data_filename)
         file_size = os.path.getsize(full_filename)
         if file_size < MIN_FILESIZE:
-            print("WARNING: file does not contain enough data:",full_filename)
+            log.warn("file does not contain enough data: " + full_filename)
             continue
-        print("opening", full_filename) 
+        log.debug("opening: " + full_filename) 
         with open(full_filename) as fh:
             first_line = fh.readline()
             file_first_timestamp = get_timestamp_from_line(first_line)
@@ -113,7 +136,7 @@ def load_labels_file(labels_filename):
     Returns:
         dict mapping channel number to label
     """
-    print("Opening", labels_filename)
+    log.debug("opening labels file: " + labels_filename)
     
     with open(labels_filename) as labels_file:
         lines = labels_file.readlines()
@@ -124,9 +147,9 @@ def load_labels_file(labels_filename):
         try:
             labels[int(split_line[0])] = split_line[2].strip()
         except ValueError:
-            print("ERROR reading line from labels.dat: '", line, "'", sep="")
+            log.warn("unprocessed line from labels.dat: '" + line + "'")
 
-    print("Loaded {} lines from {}".format(len(labels), labels_filename))
+    log.info("Loaded {} lines from {}".format(len(labels), labels_filename))
         
     return labels
     
@@ -200,7 +223,7 @@ class TemplateLabels(object):
             # Figure out if any items in source_labels are not in self.labels
             if not self.label_to_chan.has_key(label):
                 self.label_to_chan[label] = max(self.label_to_chan.values())+1
-                print("added", label, "as", self.label_to_chan[label])
+                log.info("added " + label + " as " + self.label_to_chan[label])
                 
             source_to_template[chan] = self.label_to_chan[label]
             
@@ -307,6 +330,8 @@ def check_not_overlapping(datasets):
 def main():
     args = setup_argparser()
     
+    init_logger(os.path.join(args.output_dir, 'merge_datasets.log'))
+    
     template_labels = TemplateLabels(args.template_labels_filename)
     
     data_directories = get_all_data_dirs(args.base_data_dir)
@@ -317,18 +342,18 @@ def main():
         datasets.append(Dataset(data_dir))
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
     
-    print("Proposed order :")
+    log.info("Proposed order :")
     for dataset in datasets:
-        print("    ", dataset.data_dir)
-        print("       start =", dataset.first_timestamp)
-        print("         end =", dataset.last_timestamp)
+        log.info("     " + dataset.data_dir)
+        log.info("       start = {}".format(dataset.first_timestamp))
+        log.info("         end = {}".format(dataset.last_timestamp))
         if dataset.last_timestamp and dataset.first_timestamp:
-            print("    duration =", 
-                  dataset.last_timestamp - dataset.first_timestamp) 
-        print("")
+            log.info("    duration = {}" 
+                     .format(dataset.last_timestamp - dataset.first_timestamp)) 
+        log.info("")
     
     check_not_overlapping(datasets)
-    print("Good: datasets are not overlapping")
+    log.info("Good: datasets are not overlapping")
     
     # Now merge the datasets
     for dataset in datasets:        
@@ -341,7 +366,8 @@ def main():
             output_filename = os.path.join(args.output_dir,
                                            'channel_{:d}.dat'
                                            .format(output_channel))
-            print("appending", input_filename, "to end of", output_filename)
+            log.info("appending " + input_filename + 
+                     " to end of " + output_filename)
             if not args.dry_run:
                 append_files(input_filename, output_filename)
 
