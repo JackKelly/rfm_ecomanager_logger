@@ -4,6 +4,8 @@ import argparse, os, sys, datetime, pytz, ConfigParser
 import logging.handlers
 log = logging.getLogger("merge_datasets")
 
+DATE_FMT = '%d/%m/%Y %H:%M:%S %Z'
+
 def setup_argparser():
     # Process command line _args
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -112,31 +114,32 @@ class Dataset(object):
     def __init__(self, data_dir=None):
         self.data_dir = data_dir        
         if self.data_dir is not None:
+            self.load_metadata()            
             self.get_timestamp_range()
+            self.start_datetime = datetime.datetime.fromtimestamp(self.first_timestamp,
+                                                                  self.tz)
+            self.last_datetime = datetime.datetime.fromtimestamp(self.last_timestamp,
+                                                                  self.tz)
+            self.timedelta = self.last_datetime - self.start_datetime            
             self.labels = load_labels_file(os.path.join(self.data_dir,
                                                         'labels.dat'))
-            self.load_metadata()
 
     def load_metadata(self):
         self.metadata_parser = load_metadata(self.data_dir)
         tz_string = get_tz_string_from_metadata(self.metadata_parser)
         if not tz_string:
             tz_string = get_local_machine_tz_string()
+            log.debug("No timezone info for {} so using local machine's tz = {}"
+                      .format(self.data_dir, tz_string))            
         self.tz = pytz.timezone(tz_string)
 
     def __str__(self):
         s = '\n'
         s += '     ' + self.data_dir + '\n'
         
-        start_dt = datetime.datetime.fromtimestamp(self.first_timestamp, 
-                                                   self.tz)
-        last_dt = datetime.datetime.fromtimestamp(self.last_timestamp, 
-                                                  self.tz)
-        
-        date_format = '%d/%m/%Y %H:%M:%S %Z'
-        s += '       start = ' + start_dt.strftime(date_format) + '\n'
-        s += '         end = ' + last_dt.strftime(date_format) + '\n'
-        s += '    duration = {}'.format(last_dt - start_dt) + '\n'
+        s += '       start = ' + self.start_datetime.strftime(DATE_FMT) + '\n'
+        s += '         end = ' + self.last_datetime.strftime(DATE_FMT) + '\n'
+        s += '    duration = {}'.format(self.timedelta) + '\n'
         s += '      labels = {}'.format(self.labels) + '\n'
         s += '\n'
         return s
@@ -412,6 +415,35 @@ def get_tz_string_from_metadata(metadata_parser):
     return tz_string
 
 
+def merge_metadata(dst, src):
+    """
+    Goes through every section and every option in src. If any option is 
+    not present in dst or different in dst then create or overwrite option
+    in dst with value from src.
+    
+    Args:
+        dst, src (ConfigParser.RawConfigParser)
+    Return:
+        dst (ConfigParser.RawConfigParser)
+    """
+    for section in src.sections():
+        for option in src.options(section):
+            src_value = src.get(section, option)
+            try:
+                dst_value = dst.get(section, option)
+            except ConfigParser.NoSectionError:
+                dst.add_section(section)
+                dst.set(section, option, src_value)
+            except ConfigParser.NoOptionError:
+                dst.set(section, option, src_value)
+            else:
+                if src_value != dst_value:
+                    log.warn("section={}, option={}, src value={}, dst value={}"
+                             .format(section, option, src_value, dst_value))
+                    dst.set(section, option, src_value) 
+    return dst
+
+
 def main():
     args = setup_argparser()
     
@@ -428,12 +460,22 @@ def main():
     datasets.sort(key=lambda dataset: dataset.first_timestamp)
         
     log.info("Proposed order :")
+    total_uptime = datetime.timedelta()
     for dataset in datasets:
         log.info(str(dataset))
+        total_uptime += dataset.timedelta
     
     check_not_overlapping(datasets)
     log.info("Good: datasets are not overlapping")
-    output_metadata = ConfigParser.RawConfigParser()
+    
+    timespan = datasets[-1].last_datetime - datasets[0].start_datetime
+    log.info("For whole dataset: \n"
+             "  start time = " + datasets[0].start_datetime.strftime(DATE_FMT) + "\n"
+             "    end time = " + datasets[-1].last_datetime.strftime(DATE_FMT) + "\n"
+             "    timespan = {}\n".format(timespan) + 
+             "      uptime = {}\n".format(total_uptime) + 
+             "    % uptime = {:.1%}\n".format(total_uptime.total_seconds() / 
+                                        timespan.total_seconds()))
     
     if not args.dry_run:
         # Remove all the old files in the output dir        
@@ -447,6 +489,8 @@ def main():
             except Exception as e:
                 log.warn(str(e))
                 raise
+    
+    output_metadata_parser = ConfigParser.RawConfigParser()
     
     # Now merge the datasets
     for dataset in datasets:
@@ -463,11 +507,25 @@ def main():
                      " to end of " + output_filename)
             if not args.dry_run:
                 append_files(input_filename, output_filename)
+                
+        # Handle metadata
+        output_metadata_parser = merge_metadata(output_metadata_parser,
+                                                dataset.metadata_parser)
 
     if not args.dry_run:
         template_labels.write_to_disk(args.output_dir)
+        
+        # Set default timezone in metadata if necessary
+        if not output_metadata_parser.has_section('datetime'):
+            output_metadata_parser.add_section('datetime')
+        if not output_metadata_parser.has_option('datetime', 'timezone'):
+            log.info("Setting default timezone in output metadata.dat")
+            output_metadata_parser.set('datetime', 'timezone', 
+                                       get_local_machine_tz_string())
+
+        # Write metadata to file
         with open(os.path.join(args.output_dir, 'metadata.dat'), 'wb') as f:
-            output_metadata.write(f)
+            output_metadata_parser.write(f)
 
 if __name__=="__main__":
     main()

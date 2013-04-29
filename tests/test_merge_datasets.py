@@ -1,4 +1,4 @@
-import unittest, os, sys, inspect, shutil
+import unittest, os, sys, inspect, shutil, ConfigParser
 
 # Hack to allow us to import ../scripts/merge_datasets.py
 # Take from http://stackoverflow.com/a/6098238/732596
@@ -133,6 +133,22 @@ class TestMergeDatasets(unittest.TestCase):
         
         datasets = [ds1, ds2, ds3]
         md.check_not_overlapping(datasets)
+        
+    def test_merge_metadata(self):
+        src = ConfigParser.RawConfigParser()
+        src.add_section('datetime')
+        src.set('datetime', 'timezone', 'Europe/London')
+        
+        dst  = ConfigParser.RawConfigParser()
+        
+        dst = md.merge_metadata(dst, src)
+        
+        self.assertTrue(dst.has_section('datetime'))
+        self.assertEqual(dst.get('datetime', 'timezone'), 'Europe/London')
+        
+        src.set('datetime', 'timezone', 'TEST_CHANGE')
+        dst = md.merge_metadata(dst, src)
+        self.assertEqual(dst.get('datetime', 'timezone'), 'TEST_CHANGE')
 
 if __name__ == "__main__":
     unittest.main()
