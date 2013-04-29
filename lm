@@ -247,13 +247,22 @@ case "$1" in # switch on the first command
 "data")
     check_directory "$DATA_DIR"
     echo "Displaying data.  Press CTRL-C to stop..."
-    dirs=($(ls $DATA_DIR))
+    # Get a list of just the directories in DATA_DIR
+    dirs=($(ls -p $DATA_DIR | grep / | sed -e 's/.$//'))
     dirs_length=${#dirs[@]} # length of array `dirs`
     last_element_num=$((dirs_length - 1))
     last_dir="$DATA_DIR/${dirs[$last_element_num]}"
-    echo "Using directory $last_dir"
-    echo ""
-    tail -f $last_dir/*.dat
+    if [ "${dirs[$last_element_num]}" == "high-freq-mains" ]
+    then
+	penultimate_dir="$DATA_DIR/${dirs[$last_element_num -1]}"
+	echo "Using directory $last_dir and $penultimate_dir"
+	echo ""
+	tail -f $last_dir/*.dat $penultimate_dir/*.dat
+    else
+	echo "Using directory $last_dir"
+	echo ""
+	tail -f $last_dir/*.dat
+    fi
     ;;
 
 "edit")
