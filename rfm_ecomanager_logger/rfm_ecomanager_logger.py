@@ -84,6 +84,7 @@ def main():
     try:
         with Nanode(args) as nanode:
             manager = Manager(nanode, args)
+            manager.unpickle()
             
             if args.edit:
                 log.info("Running editing...")

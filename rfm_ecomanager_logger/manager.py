@@ -4,6 +4,7 @@ import pickle
 import time
 import sys
 import logging
+import ConfigParser
 log = logging.getLogger("rfm_ecomanager_logger")
 import os, inspect
 from nanode import NanodeRestart, NanodeTooManyRetries, Nanode, NanodeDataWaiting
@@ -30,6 +31,7 @@ class Manager(object):
         self.abort = False
         self._require_pair_request = True        
 
+    def unpickle(self):
         # if radioIDs.pkl exists then open it and load data, tell Nanode
         # how many TXs and TRXs there are and then inform Nanode of
         # each TX and TRX.
@@ -51,6 +53,7 @@ class Manager(object):
             if not args.edit:
                 self._pre_process_data_directory()
                 self._create_labels_file()
+                self._create_metadata_file()
 
             for dummy, tx in self.transmitters.iteritems():
                 tx.unpickle(self)
@@ -123,6 +126,25 @@ class Manager(object):
                              " --data-directory")
                 sys.exit(1)
                 
+    def _create_metadata_file(self):
+        TZFILE_NAME = '/etc/timezone'
+        try:
+            f = open(TZFILE_NAME)
+            local_tz = f.readline()
+            f.close()
+        except IOError as e:
+            log.warn('Could not open ' + TZFILE_NAME)
+        else:
+            metadata_parser = ConfigParser.RawConfigParser()
+            metadata_parser.add_section('datetime')
+            metadata_parser.set('datetime', 'timezone', local_tz)
+            metadata_filename = os.path.join(self.args.data_directory,
+                                             'metadata.dat') 
+            with open(metadata_filename, 'wb') as f:
+                metadata_parser.write(f)
+            
+            return metadata_filename
+
     def _restart_nanode(self):
         log.info("restart_nanode. Initialising nanode...")
         self.nanode.init_nanode()
