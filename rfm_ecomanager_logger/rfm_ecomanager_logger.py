@@ -51,7 +51,7 @@ def setup_logger(args):
 
     # create formatter
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s",
-                                  "%y-%m-%d %H:%M:%S")
+                                  "%y-%m-%d %H:%M:%S %Z")
     
     # create console handler
     ch = logging.StreamHandler()
