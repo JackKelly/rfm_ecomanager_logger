@@ -70,7 +70,7 @@ class TestMergeDatasets(unittest.TestCase):
         
         source_data_dir = os.path.join(BASE_TEST_DATA_DIR, '001')
         
-        stt = tl.assimilate_and_get_map(source_data_dir)
+        stt = tl.assimilate_and_get_map(md.Dataset(source_data_dir))
         
         self.assertEqual(stt[1], 1) 
         self.assertEqual(stt[16], 15) # breadmaker
@@ -110,7 +110,8 @@ class TestMergeDatasets(unittest.TestCase):
         
     def test_get_timestamp_range(self):
         DIR = os.path.join(BASE_TEST_DATA_DIR, '001')
-        first_timestamp, last_timestamp = md.get_timestamp_range(DIR)
+        dataset = md.Dataset(DIR)
+        first_timestamp, last_timestamp = dataset.get_timestamp_range()
         self.assertEqual(first_timestamp, 1360396444.0)
         self.assertEqual(last_timestamp, 1360400145.0)            
         

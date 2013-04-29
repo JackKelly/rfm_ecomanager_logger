@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function, division
-import argparse, os, sys, datetime
+import argparse, os, sys, datetime, pytz, ConfigParser
 import logging.handlers
 log = logging.getLogger("merge_datasets")
 
@@ -110,64 +110,97 @@ def init_logger(log_filename):
 
 class Dataset(object):
     def __init__(self, data_dir=None):
-        if data_dir is None:
-            return
+        self.data_dir = data_dir        
+        if self.data_dir is not None:
+            self.get_timestamp_range()
+            self.labels = load_labels_file(os.path.join(self.data_dir,
+                                                        'labels.dat'))
+            self.load_metadata()
+
+    def load_metadata(self):
+        self.metadata_parser = load_metadata(self.data_dir)
+        tz_string = get_tz_string_from_metadata(self.metadata_parser)
+        if not tz_string:
+            tz_string = get_local_machine_tz_string()
+        self.tz = pytz.timezone(tz_string)
+
+    def __str__(self):
+        s = '\n'
+        s += '     ' + self.data_dir + '\n'
         
-        first_timestamp, last_timestamp = get_timestamp_range(data_dir)
+        start_dt = datetime.datetime.fromtimestamp(self.first_timestamp, 
+                                                   self.tz)
+        last_dt = datetime.datetime.fromtimestamp(self.last_timestamp, 
+                                                  self.tz)
+        
+        date_format = '%d/%m/%Y %H:%M:%S %Z'
+        s += '       start = ' + start_dt.strftime(date_format) + '\n'
+        s += '         end = ' + last_dt.strftime(date_format) + '\n'
+        s += '    duration = {}'.format(last_dt - start_dt) + '\n'
+        s += '      labels = {}'.format(self.labels) + '\n'
+        s += '\n'
+        return s
+
+    def get_timestamp_range(self):
+        """
+        Opens all channel_?.dat files in data_dir and finds the first and last
+        timestamps across all dat files. 
+
+        Returns:
+            first_timestamp (float), last_timestamp (float)
+        """    
+        first_timestamp = None
+        last_timestamp = None
+        
+        MIN_FILESIZE = 13 # a single line of data is at least 13 bytes
+        
+        def get_timestamp_from_line(line):
+            return float(line.split(' ')[0])
+        
+        for data_filename in self.get_data_filenames():
+            full_filename = os.path.join(self.data_dir, data_filename)
+            file_size = os.path.getsize(full_filename)
+            if file_size < MIN_FILESIZE:
+                log.warn("file does not contain enough data: " + full_filename)
+                continue
+            with open(full_filename) as fh:
+                first_line = fh.readline()
+                file_first_timestamp = get_timestamp_from_line(first_line)
+                
+                if file_size > MIN_FILESIZE*2:
+                    # If the file is sufficiently large then
+                    # seek to the end of the file minus two lines                
+                    fh.seek(-MIN_FILESIZE*2, 2)
+                    
+                last_lines = fh.readlines()
+                if last_lines: 
+                    last_line = last_lines[-1]
+                else:
+                    last_line = first_line
+     
+                file_last_timestamp = get_timestamp_from_line(last_line)
+            
+            if first_timestamp is None or file_first_timestamp < first_timestamp:
+                first_timestamp = file_first_timestamp
+    
+            if last_timestamp is None or file_last_timestamp > last_timestamp:
+                last_timestamp = file_last_timestamp
+    
         self.first_timestamp = first_timestamp
         self.last_timestamp = last_timestamp
-        self.data_dir = data_dir
+        return first_timestamp, last_timestamp
 
-
-def get_timestamp_range(data_dir):
-    """
-    Opens all channel_?.dat files in data_dir and finds the first and last
-    timestamps across all dat files. 
-    
-    Args:
-        data_dir (str)
-        
-    Returns:
-        first_timestamp (float), last_timestamp (float)
-    """    
-    first_timestamp = None
-    last_timestamp = None
-    
-    MIN_FILESIZE = 13 # a single line of data is at least 13 bytes
-    
-    def get_timestamp_from_line(line):
-        return float(line.split(' ')[0])
-    
-    for data_filename in get_data_filenames(data_dir):
-        full_filename = os.path.join(data_dir, data_filename)
-        file_size = os.path.getsize(full_filename)
-        if file_size < MIN_FILESIZE:
-            log.warn("file does not contain enough data: " + full_filename)
-            continue
-        with open(full_filename) as fh:
-            first_line = fh.readline()
-            file_first_timestamp = get_timestamp_from_line(first_line)
-            
-            if file_size > MIN_FILESIZE*2:
-                # If the file is sufficiently large then
-                # seek to the end of the file minus two lines                
-                fh.seek(-MIN_FILESIZE*2, 2)
-                
-            last_lines = fh.readlines()
-            if last_lines: 
-                last_line = last_lines[-1]
-            else:
-                last_line = first_line
- 
-            file_last_timestamp = get_timestamp_from_line(last_line)
-        
-        if first_timestamp is None or file_first_timestamp < first_timestamp:
-            first_timestamp = file_first_timestamp
-
-        if last_timestamp is None or file_last_timestamp > last_timestamp:
-            last_timestamp = file_last_timestamp
-
-    return first_timestamp, last_timestamp
+    def get_data_filenames(self):
+        """            
+        Returns:
+            list of strings representing .dat filenames, including .dat suffix;
+            not including the directory.  Only returns files of the form
+            channel_??.dat
+        """
+        all_filenames = os.walk(self.data_dir).next()[2]
+        data_filenames = [f for f in all_filenames
+                          if f.startswith('channel_') and f.endswith('.dat')]
+        return data_filenames
 
 
 def load_labels_file(labels_filename):
@@ -233,29 +266,26 @@ class TemplateLabels(object):
             for label in labels[1:]:
                 self.synonym_to_primary[label] = labels[0]
 
-    def assimilate_and_get_map(self, data_dir):
+    def assimilate_and_get_map(self, dataset):
         """
         If data_dir/labels.dat contains any labels not in self.labels
         then add those labels to self.labels.
         Return a mapping from source labels to template labels.
         
         Args:
-            data_dir (str)
+            dataset (Dataset)
             
         Returns:
             dict mapping from source labels index to template labels index.
             e.g.
                 {1: 1,  2: 3,  3: 2}
                 maps source labels 1, 2 and 3 to template labels 1, 3 and 2
-        """
-        labels_filename = os.path.join(data_dir, 'labels.dat')
-        source_labels = load_labels_file(labels_filename)
-        
+        """      
         source_to_template = {} # what we return
         
-        for chan, label in source_labels.iteritems():
+        for chan, label in dataset.labels.iteritems():
             # filter out any labels for data files which don't exist
-            chan_filename = os.path.join(data_dir, 
+            chan_filename = os.path.join(dataset.data_dir, 
                                          "channel_{:d}.dat".format(chan))
             if not os.path.exists(chan_filename):
                 log.debug("does not exist: " + chan_filename)
@@ -264,7 +294,8 @@ class TemplateLabels(object):
             # Figure out if any items in source_labels are not in self.labels
             if not self.label_to_chan.has_key(label):
                 self.label_to_chan[label] = max(self.label_to_chan.values())+1
-                log.info("added " + label + " as " + self.label_to_chan[label])
+                log.info("added {} as {}".format(label,
+                                                 self.label_to_chan[label]))
                 
             source_to_template[chan] = self.label_to_chan[label]
             
@@ -282,22 +313,6 @@ class TemplateLabels(object):
         with open(os.path.join(data_dir, 'labels.dat'), 'w') as fh:
             for chan in sorted(chan_to_label.iterkeys()):
                 fh.write('{} {}\n'.format(chan, chan_to_label[chan]))
-
-
-def get_data_filenames(data_dir):
-    """
-    Args:
-        data_dir (str)
-        
-    Returns:
-        list of strings representing .dat filenames, including .dat suffix;
-        not including the directory.  Only returns files of the form
-        channel_??.dat
-    """
-    all_filenames = os.walk(data_dir).next()[2]
-    data_filenames = [f for f in all_filenames
-                      if f.startswith('channel_') and f.endswith('.dat')]
-    return data_filenames
 
 
 def get_channel_from_filename(data_filename):
@@ -375,6 +390,28 @@ def check_not_overlapping(datasets):
         last_timestamp = dataset.last_timestamp
 
 
+def load_metadata(data_dir):
+    metadata_parser = ConfigParser.RawConfigParser()
+    metadata_parser.read(os.path.join(data_dir, 'metadata.dat'))
+    return metadata_parser
+
+
+def get_local_machine_tz_string():
+    TZFILE_NAME = '/etc/timezone'
+    f = open(TZFILE_NAME)
+    local_tz_string = f.readline()
+    f.close()
+    return local_tz_string.strip()
+
+
+def get_tz_string_from_metadata(metadata_parser):
+    try:
+        tz_string = metadata_parser.get('datetime', 'timezone')
+    except ConfigParser.Error:
+        tz_string = ""
+    return tz_string
+
+
 def main():
     args = setup_argparser()
     
@@ -392,20 +429,11 @@ def main():
         
     log.info("Proposed order :")
     for dataset in datasets:
-        log.info("     " + dataset.data_dir)
-        start_dt = datetime.datetime.fromtimestamp(dataset.first_timestamp)
-        last_dt = datetime.datetime.fromtimestamp(dataset.last_timestamp)
-        date_format = '%d/%m/%Y %H:%M:%S'
-        log.info("       start = " + start_dt.strftime(date_format))
-        log.info("         end = " + last_dt.strftime(date_format))
-        log.info("    duration = {}" 
-                 .format(last_dt - start_dt))
-        labels = load_labels_file(os.path.join(dataset.data_dir, 'labels.dat'))
-        log.info("      labels = {}".format(labels))
-        log.info("")
+        log.info(str(dataset))
     
     check_not_overlapping(datasets)
     log.info("Good: datasets are not overlapping")
+    output_metadata = ConfigParser.RawConfigParser()
     
     if not args.dry_run:
         # Remove all the old files in the output dir        
@@ -422,9 +450,9 @@ def main():
     
     # Now merge the datasets
     for dataset in datasets:
-        labels_map = template_labels.assimilate_and_get_map(dataset.data_dir)
+        labels_map = template_labels.assimilate_and_get_map(dataset)
         
-        for data_filename in get_data_filenames(dataset.data_dir):
+        for data_filename in dataset.get_data_filenames():
             input_channel = get_channel_from_filename(data_filename)
             input_filename = os.path.join(dataset.data_dir, data_filename)
             output_channel = labels_map[input_channel]
@@ -438,6 +466,8 @@ def main():
 
     if not args.dry_run:
         template_labels.write_to_disk(args.output_dir)
+        with open(os.path.join(args.output_dir, 'metadata.dat'), 'wb') as f:
+            output_metadata.write(f)
 
 if __name__=="__main__":
     main()
