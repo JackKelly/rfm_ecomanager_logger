@@ -19,9 +19,9 @@ a single dataset directory.
 REQUIREMENTS
 ============
 
-Create a labels.dat file for your target data directory.  This
-file can include multiple synonyms on each line, separated by a
-forward slash.  For example:
+Create a labels.dat file for your target data directory.  The labels are
+case sensitive.  This file can include multiple synonyms on each line,
+separated by a forward slash "/".  For example:
    
      1 aggregate / agg / mains
      2 toaster
@@ -236,8 +236,8 @@ class TemplateLabels(object):
     def assimilate_and_get_map(self, data_dir):
         """
         If data_dir/labels.dat contains any labels not in self.labels
-        then add those labels to self.labels and return a mapping
-        from source labels to template labels.
+        then add those labels to self.labels.
+        Return a mapping from source labels to template labels.
         
         Args:
             data_dir (str)
