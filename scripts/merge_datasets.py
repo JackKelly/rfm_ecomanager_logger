@@ -215,7 +215,7 @@ class TemplateLabels(object):
             chan_filename = os.path.join(data_dir, 
                                          "channel_{:d}.dat".format(chan))
             if not os.path.exists(chan_filename):
-                log.warn(chan_filename + " does not exist")
+                log.debug("does not exist: " + chan_filename)
                 continue
         
             # Figure out if any items in source_labels are not in self.labels
