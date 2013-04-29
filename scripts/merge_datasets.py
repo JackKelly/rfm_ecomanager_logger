@@ -7,7 +7,7 @@ log = logging.getLogger("merge_datasets")
 def setup_argparser():
     # Process command line _args
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     epilog=
+                                     usage=
 """
 DESCRIPTION
 ===========
@@ -16,19 +16,62 @@ rfm_ecomanager_logger creates a new, numerically labelled data directory
 every time it is run.  merge_datasets.py aims to merge these datasets into
 a single dataset directory.
 
-USAGE
-=====
+REQUIREMENTS
+============
 
-1. Create a labels.dat file for your target data directory.  This
-   file can include multiple synonyms on each line, separated by a /
+Create a labels.dat file for your target data directory.  This
+file can include multiple synonyms on each line, separated by a
+forward slash.  For example:
    
-   For example:
      1 aggregate / agg / mains
      2 toaster
      3 tv / television
      
-   Specifying synonyms is useful if the input datasets use different labels
-   for the same appliance.
+Specifying synonyms is useful if the input datasets use different labels
+for the same appliance.  The first name in a list of synonyms will be used
+in the output labels.dat file.
+
+USAGE
+=====
+   
+Run merge_datasets as follows:
+
+  ./merge_datasets.py <BASE_DATA_DIR> 
+    --template-labels-file <TEMPLATE LABELS.DAT>
+    --output-dir <OUTPUT_DIRECTORY>
+    [--dry-run]
+
+<BASE_DATA_DIR> 
+  Will be searched recursively for input data directories containing valid
+  data.  The following logic is performed on each directory:
+  - Does the directory contain a labels.dat file? 
+      If not then:
+          the directory is assumed to not be a data directory and will be
+          searched recursively for more data directories.
+      If it does then proceed with further checks:
+  - Does the directory contain at least one channel_??.dat file?  
+    If not then ignore it.
+  - If a channel is listed in the labels.dat file but there
+    is no corresponding channel_??.dat file then that channel is ignored.
+
+<OUTPUT_DIRECTORY>
+  Will be populated with:
+  - all merged channel_??.dat files
+  - a new labels.dat file based on the target labels.dat file.  If any
+    input data directory contains valid channels not listed in the 
+    target labels.dat file then those channels will be appended to the end
+    of the target labels.
+  - a merge_datasets.log file
+  
+  All *.dat files and merge_datasets.log in <OUTPUT_DIRECTORY> will be
+  deleted when merge_datasets.py starts, to make way for the new files.
+  
+--dry-run
+  Can optionally be specified to check that the proposed order
+  of the input data directories is correct before actually merging the files.
+  Specifying --dry-run will also disable deletion of *.dat files 
+  in <OUTPUT_DIRECTORY>.
+    
 """                                     )
  
     parser.add_argument('base_data_dir')
@@ -364,17 +407,18 @@ def main():
     check_not_overlapping(datasets)
     log.info("Good: datasets are not overlapping")
     
-    # Remove all the old files in the output dir
-    files_to_delete = [f for f in os.listdir(args.output_dir) 
-                       if f.endswith('.dat')] 
-    log.info("Deleting {} old files in {}"
-             .format(len(files_to_delete), args.output_dir))    
-    for filename in files_to_delete:
-        try:
-            os.remove(os.path.join(args.output_dir, filename))
-        except Exception as e:
-            log.warn(str(e))
-            raise
+    if not args.dry_run:
+        # Remove all the old files in the output dir        
+        files_to_delete = [f for f in os.listdir(args.output_dir) 
+                           if f.endswith('.dat')] 
+        log.info("Deleting {} old files in {}"
+                 .format(len(files_to_delete), args.output_dir))    
+        for filename in files_to_delete:
+            try:
+                os.remove(os.path.join(args.output_dir, filename))
+            except Exception as e:
+                log.warn(str(e))
+                raise
     
     # Now merge the datasets
     for dataset in datasets:
