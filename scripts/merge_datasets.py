@@ -42,6 +42,7 @@ Run merge_datasets as follows:
     --template-labels-file <TEMPLATE LABELS.DAT>
     --output-dir <OUTPUT_DIRECTORY>
     [--dry-run]
+    [--scpm-data-dir] <SCPM_DATA_DIRECTORY>
 
 <BASE_DATA_DIR> 
   Will be searched recursively for input data directories containing valid
@@ -73,6 +74,11 @@ Run merge_datasets as follows:
   of the input data directories is correct before actually merging the files.
   Specifying --dry-run will also disable deletion of *.dat files 
   in <OUTPUT_DIRECTORY>.
+  
+--scpm-data-dir
+  Optionally provide a base directory for data recorded using the
+  Sound Card Power Meter project.  These .dat files will be merged into one
+  large mains.dat file.
     
 """                                     )
  
@@ -83,6 +89,8 @@ Run merge_datasets as follows:
                         ' datasets to.', required=True)
     
     parser.add_argument('--output-dir', type=str, required=True)
+    
+    parser.add_argument('--scpm-data-dir', type=str)
     
     parser.add_argument('--dry-run', action='store_true')
         
@@ -526,6 +534,20 @@ def main():
         # Write metadata to file
         with open(os.path.join(args.output_dir, 'metadata.dat'), 'wb') as f:
             output_metadata_parser.write(f)
+            
+    # Process Sound Card Power Meter data if scpm-data-dir is set
+    if args.scpm_data_dir:
+        args.scpm_data_dir = os.path.realpath(args.scpm_data_dir)
+        log.info("Processing SCPM data dir = " + args.scpm_data_dir)
+        mains_files = [f for f in os.listdir(args.scpm_data_dir)
+                       if f.startswith('mains-') and f.endswith('.dat')]
+        mains_files.sort()
+        output_filename = os.path.join(args.output_dir, 'mains.dat')
+        log.info("Propose order for SCPM data: {}".format(mains_files))
+        if not args.dry_run:
+            for mains_file in mains_files:
+                input_filename = os.path.join(args.scpm_data_dir, mains_file)
+                append_files(input_filename, output_filename)
 
 if __name__=="__main__":
     main()
