@@ -66,7 +66,7 @@ Run merge_datasets as follows:
     of the target labels.
   - a merge_datasets.log file
   
-  All *.dat files and merge_datasets.log in <OUTPUT_DIRECTORY> will be
+  All channel_*.dat files and merge_datasets.log in <OUTPUT_DIRECTORY> will be
   deleted when merge_datasets.py starts, to make way for the new files.
   
 --dry-run
@@ -488,7 +488,8 @@ def main():
     if not args.dry_run:
         # Remove all the old files in the output dir        
         files_to_delete = [f for f in os.listdir(args.output_dir) 
-                           if f.endswith('.dat')] 
+                           if f.startswith('channel_') and f.endswith('.dat')] 
+        files_to_delete.append('labels.dat')
         log.info("Deleting {} old files in {}"
                  .format(len(files_to_delete), args.output_dir))    
         for filename in files_to_delete:
