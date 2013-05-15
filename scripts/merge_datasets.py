@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function, division
-import argparse, os, sys, datetime, pytz, ConfigParser
+import argparse, os, sys, datetime, pytz, ConfigParser, shutil
 import logging.handlers
 log = logging.getLogger("merge_datasets")
 
@@ -498,6 +498,14 @@ def main():
             except Exception as e:
                 log.warn(str(e))
                 raise
+
+        # Copy README.txt if it exists
+        readme_filename = os.path.join(args.base_data_dir, 'README.txt')
+        if os.path.exists(readme_filename):
+            log.info("Copying " + readme_filename)
+            shutil.copy2(readme_filename, args.output_dir)
+        else:
+            log.info(readme_filename + " does not exist so will not copy it!")
     
     output_metadata_parser = ConfigParser.RawConfigParser()
     
