@@ -490,6 +490,7 @@ def main():
         files_to_delete = [f for f in os.listdir(args.output_dir) 
                            if f.startswith('channel_') and f.endswith('.dat')] 
         files_to_delete.append('labels.dat')
+        files_to_delete.append('mains.dat')
         log.info("Deleting {} old files in {}"
                  .format(len(files_to_delete), args.output_dir))    
         for filename in files_to_delete:
@@ -510,6 +511,9 @@ def main():
     output_metadata_parser = ConfigParser.RawConfigParser()
     
     # Now merge the datasets
+    if not args.dry_run:
+        log.info("Merging files...")
+
     for dataset in datasets:
         labels_map = template_labels.assimilate_and_get_map(dataset)
         
@@ -530,6 +534,7 @@ def main():
                                                 dataset.metadata_parser)
 
     if not args.dry_run:
+        log.info("Writing new labels file to disk")
         template_labels.write_to_disk(args.output_dir)
         
         # Set default timezone in metadata if necessary
@@ -548,8 +553,8 @@ def main():
     if args.scpm_data_dir:
         args.scpm_data_dir = os.path.realpath(args.scpm_data_dir)
         log.info("Processing SCPM data dir = " + args.scpm_data_dir)
-        mains_files = [f for f in os.listdir(args.scpm_data_dir)
-                       if f.startswith('mains-') and f.endswith('.dat')]
+        mains_files = [mf for mf in os.listdir(args.scpm_data_dir)
+                       if mf.startswith('mains-') and mf.endswith('.dat')]
         mains_files.sort()
         output_filename = os.path.join(args.output_dir, 'mains.dat')
         log.info("Propose order for SCPM data: {}".format(mains_files))
