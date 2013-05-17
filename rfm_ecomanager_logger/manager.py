@@ -50,7 +50,7 @@ class Manager(object):
             self.transmitters = pickle.load(pkl_file)
             pkl_file.close()
 
-            if not args.edit:
+            if not self.args.edit:
                 self._pre_process_data_directory()
                 self._create_labels_file()
                 self._create_metadata_file()
