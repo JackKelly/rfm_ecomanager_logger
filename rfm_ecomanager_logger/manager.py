@@ -288,15 +288,17 @@ class Manager(object):
             return
         
         print("\n=====  KNOWN SENSORS  =====\n")
-        print("{:5s}{:>12s}{:>6}{:>8}{:>5}{:>10}{:>20}"
-              .format("INDEX", "RF_ID", "TYPE", "SENSOR", "IAM?", "LOG_CHAN", "NAME"))
+        print("{:5s}{:>12s}{:>6}{:>3}{:>8}{:>5}{:>10}{:>20}"
+              .format("INDEX", "RF_ID", "TYPE", "ON",
+                      "SENSOR", "IAM?", "LOG_CHAN", "NAME"))
         
-
         log_chans = self._get_log_chans_and_rf_ids()
         for log_chan, tx_id in log_chans:
-            print("{:>5d}{:>12d}{:>6}{}"
-                  .format(log_chan, tx_id, self.transmitters[tx_id].TYPE
-                          , self.transmitters[tx_id].print_sensors()))
+            tx = self.transmitters[tx_id]
+            state = tx.state if isinstance(tx, Cc_trx) else "?" 
+            print("{:>5d}{:>12d}{:>6}{:>3}{}"
+                  .format(log_chan, tx_id, 
+                          tx.TYPE, state, tx.print_sensors()))
     
     def _edit_transmitter(self, cmd):
         try:
