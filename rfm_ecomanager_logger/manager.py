@@ -454,4 +454,6 @@ class Manager(object):
         
         on_or_off = input_int_with_cancel("On (1) or off (0)? ")
         self.transmitters[tx_id].switch(on_or_off)
+        self.transmitters[tx_id].state = on_or_off
+        self._pickle()
         
