@@ -92,7 +92,7 @@ class Transmitter(object):
             if first:
                 first = False
             else:
-                string += "\n" + " "*23
+                string += "\n" + " "*26
                 
             string += "{:>8d}{:^5s}{:>10d}{:>20s}" \
                       .format(sensor_id,
