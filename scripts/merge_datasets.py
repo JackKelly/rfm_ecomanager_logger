@@ -5,7 +5,10 @@ import logging.handlers
 log = logging.getLogger("merge_datasets")
 
 DATE_FMT = '%d/%m/%Y %H:%M:%S %Z'
-MIN_VOLTAGE = 200
+MIN_VOLTAGE = 200 # minimum acceptable voltage for mains voltage recorded using snd_card_power_meter
+AGGREGATE_LABELS = ['agg','aggregate','mains','whole-house', 'wholehouse', 'whole house']
+THRESHOLD_FOR_IAMS = 4500 # watts
+THRESHOLD_FOR_AGGREGATE = 20000 # watts
 
 def setup_argparser():
     # Process command line _args
@@ -16,8 +19,10 @@ DESCRIPTION
 ===========
 
 rfm_ecomanager_logger creates a new, numerically labelled data directory
-every time it is run.  merge_datasets.py aims to merge these datasets into
-a single dataset directory.
+every time it is run.  merge_datasets.py merges these datasets into
+a single dataset directory and also removes insanely large values and the
+phase difference column from snd_card_power_meter data (because that column
+is garbage!)
 
 REQUIREMENTS
 ============
@@ -339,6 +344,25 @@ def get_channel_from_filename(data_filename):
     return int(channel_str)
 
 
+def remove_values_above(threshold, line):
+    """
+    Args:
+        threshold (float)
+        line (str)
+    """
+    parts = line.split(' ')
+    try:
+        watts = float(parts[1])
+    except Exception as e:
+        log.warn('problem processing line ' + line + ': ' + str(e))
+        return None
+    
+    if watts > threshold:
+        return None
+    else:
+        return line
+
+
 def process_high_freq_line(data):
     data = data.split(' ')
     data[-1] = data[-1].strip()
@@ -373,9 +397,10 @@ def append_files(input_filename, output_filename,
     output_file = open(output_filename, 'a')
     while True:
         data = input_file.readline()
-        data = line_processing_func(data)
         if data and data.strip():
-            output_file.write(data)
+            data = line_processing_func(data)
+            if data is not None:
+                output_file.write(data)
         else:
             break
     input_file.close()
@@ -523,7 +548,6 @@ def main():
                 os.remove(os.path.join(args.output_dir, filename))
             except Exception as e:
                 log.warn(str(e))
-                raise
 
         # Copy README.txt if it exists
         readme_filename = os.path.join(args.base_data_dir, 'README.txt')
@@ -552,7 +576,14 @@ def main():
             log.debug("appending " + input_filename + 
                      " to end of " + output_filename)
             if not args.dry_run:
-                append_files(input_filename, output_filename)
+                label = dataset.labels[input_channel]
+                if label in AGGREGATE_LABELS:
+                    threshold = THRESHOLD_FOR_AGGREGATE
+                else:
+                    threshold = THRESHOLD_FOR_IAMS
+                line_proc_f = lambda line: remove_values_above(threshold, line)
+                append_files(input_filename, output_filename, 
+                             line_processing_func=line_proc_f)
                 
         # Handle metadata
         output_metadata_parser = merge_metadata(output_metadata_parser,
