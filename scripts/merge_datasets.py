@@ -100,7 +100,15 @@ Run merge_datasets as follows:
     
     parser.add_argument('--dry-run', action='store_true')
         
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    args.base_data_dir = os.path.expanduser(args.base_data_dir)
+    args.template_labels_filename = os.path.expanduser(args.template_labels_filename)
+    args.output_dir = os.path.expanduser(args.output_dir)
+    if args.scpm_data_dir:
+        args.scpm_data_dir = os.path.expanduser(args.scpm_data_dir)
+
+    return args
 
 
 def init_logger(log_filename):
@@ -504,6 +512,9 @@ def merge_metadata(dst, src):
 
 def main():
     args = setup_argparser()
+
+    if not os.path.exists(args.output_dir) and not args.dry_run:
+        os.makedirs(args.output_dir)
     
     init_logger(os.path.join(args.output_dir, 'merge_datasets.log'))
     
