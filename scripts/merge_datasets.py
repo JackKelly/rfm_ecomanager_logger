@@ -5,6 +5,7 @@ import logging.handlers
 log = logging.getLogger("merge_datasets")
 
 DATE_FMT = '%d/%m/%Y %H:%M:%S %Z'
+MIN_VOLTAGE = 200
 
 def setup_argparser():
     # Process command line _args
@@ -338,17 +339,41 @@ def get_channel_from_filename(data_filename):
     return int(channel_str)
 
 
-def append_files(input_filename, output_filename):
+def process_high_freq_line(data):
+    data = data.split(' ')
+    data[-1] = data[-1].strip()
+
+    # Remove phase diff column (because it's garbage!)
+    data = data[:4]
+
+    # Ignore entire line if voltage is insanely low
+    try:
+        voltage = float(data[3])
+    except IndexError:
+        return None
+
+    if voltage < MIN_VOLTAGE:
+        return None
+
+    data = ' '.join(data) + '\n'
+    return data
+
+
+def append_files(input_filename, output_filename, 
+                 line_processing_func=lambda x: x):
     """
     Appends input_filename onto the end of output_filename.
     
     Args:
         input_filename, output_filename (str): full paths to files
+        line_processing_func (function): Optional. A suitable function must 
+            take a single line as input and return a processed line or None.
     """
     input_file = open(input_filename, 'r')    
     output_file = open(output_filename, 'a')
     while True:
         data = input_file.readline()
+        data = line_processing_func(data)
         if data and data.strip():
             output_file.write(data)
         else:
@@ -561,7 +586,8 @@ def main():
         if not args.dry_run:
             for mains_file in mains_files:
                 input_filename = os.path.join(args.scpm_data_dir, mains_file)
-                append_files(input_filename, output_filename)
+                append_files(input_filename, output_filename,
+                             line_processing_func=process_high_freq_line)
 
 if __name__=="__main__":
     main()
