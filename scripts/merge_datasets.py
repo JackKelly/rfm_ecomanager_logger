@@ -7,7 +7,7 @@ log = logging.getLogger("merge_datasets")
 DATE_FMT = '%d/%m/%Y %H:%M:%S %Z'
 MIN_VOLTAGE = 200 # minimum acceptable voltage for mains voltage recorded using snd_card_power_meter
 AGGREGATE_LABELS = ['agg','aggregate','mains','whole-house', 'wholehouse', 'whole house']
-THRESHOLD_FOR_IAMS = 4500 # watts
+THRESHOLD_FOR_IAMS = 4090 # watts.  4096 (2^{12}) is a common anomalous number 
 THRESHOLD_FOR_AGGREGATE = 20000 # watts
 
 def setup_argparser():
