@@ -624,7 +624,7 @@ def main():
                        if mf.startswith('mains-') and mf.endswith('.dat')]
         mains_files.sort()
         output_filename = os.path.join(args.output_dir, 'mains.dat')
-        log.info("Propose order for SCPM data: {}".format(mains_files))
+        log.info("Proposed order for SCPM data: {}".format(mains_files))
         if not args.dry_run:
             for mains_file in mains_files:
                 input_filename = os.path.join(args.scpm_data_dir, mains_file)

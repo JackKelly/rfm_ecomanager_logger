@@ -13,6 +13,7 @@ nohup.*
 src/
 rfm_ecomanager_logger.egg-info/
 build/
+.ropeproject/
 
 radioIDs.pkl.new
 radioIDs.pkl.simple
