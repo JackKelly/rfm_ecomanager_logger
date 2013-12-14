@@ -560,13 +560,17 @@ def main():
             except Exception as e:
                 log.warn(str(e))
 
-        # Copy README.txt if it exists
-        readme_filename = os.path.join(args.base_data_dir, 'README.txt')
-        if os.path.exists(readme_filename):
-            log.info("Copying " + readme_filename)
-            shutil.copy2(readme_filename, args.output_dir)
-        else:
-            log.info(readme_filename + " does not exist so will not copy it!")
+        # Copy README.txt and .dat files in base_data_dir, if they exist
+        files_to_copy = os.listdir(args.base_data_dir)
+        files_to_copy = [file for file in files_to_copy 
+                         if file.endswith('.txt') or file.endswith('.dat')]
+        for file in files_to_copy:
+            fname = os.path.join(args.base_data_dir, file)
+            if os.path.exists(fname):
+                log.info("Copying " + fname)
+                shutil.copy2(fname, args.output_dir)
+            else:
+                log.info(fname + " does not exist so will not copy it!")
     
     output_metadata_parser = ConfigParser.RawConfigParser()
     
