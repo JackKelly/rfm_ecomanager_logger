@@ -12,6 +12,10 @@ from input_with_cancel import *
 
 FILE_PATH = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
+from os import path
+
+path.join('a')
+
 class Manager(object):
     """ 
     Attributes:

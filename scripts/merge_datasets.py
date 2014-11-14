@@ -194,7 +194,7 @@ class Dataset(object):
                 
                 if file_size > MIN_FILESIZE*2:
                     # If the file is sufficiently large then
-                    # seek to the end of the file minus two lines                
+                    # seek to the end of the file minus two lines
                     fh.seek(-MIN_FILESIZE*2, 2)
                     
                 last_lines = fh.readlines()
@@ -202,8 +202,13 @@ class Dataset(object):
                     last_line = last_lines[-1]
                 else:
                     last_line = first_line
-     
-                file_last_timestamp = get_timestamp_from_line(last_line)
+
+                try:
+                    file_last_timestamp = get_timestamp_from_line(last_line)
+                except:
+                    print("Failed to read last line of file '{:s}'. Last line='{:s}'"
+                          .format(full_filename, last_line), file=sys.stderr)
+                    raise
             
             if first_timestamp is None or file_first_timestamp < first_timestamp:
                 first_timestamp = file_first_timestamp
@@ -359,11 +364,7 @@ def remove_values_above(threshold, line):
         line (str)
     """
     parts = line.split(' ')
-    try:
-        watts = float(parts[1])
-    except Exception as e:
-        log.warn('problem processing line ' + line + ': ' + str(e))
-        return None
+    watts = float(parts[1])
     
     if watts > threshold:
         return None
@@ -406,9 +407,16 @@ def append_files(input_filename, output_filename,
     while True:
         data = input_file.readline()
         if data and data.strip():
-            data = line_processing_func(data)
-            if data is not None:
-                output_file.write(data)
+            try:
+                data = line_processing_func(data)
+            except Exception as e:
+                log.warn("Problem processing line in file '{}' while"
+                         " concatenating with '{}'."
+                         " Troublesome input line = '{}'. Error was: '{}'"
+                         .format(input_filename, output_filename, data, e))
+            else:
+                if data is not None:
+                    output_file.write(data)
         else:
             break
     input_file.close()
@@ -617,8 +625,8 @@ def main():
                                        get_local_machine_tz_string())
 
         # Write metadata to file
-        with open(os.path.join(args.output_dir, 'metadata.dat'), 'wb') as f:
-            output_metadata_parser.write(f)
+        # with open(os.path.join(args.output_dir, 'metadata.dat'), 'wb') as f:
+        #     output_metadata_parser.write(f)
             
     # Process Sound Card Power Meter data if scpm-data-dir is set
     if args.scpm_data_dir:
