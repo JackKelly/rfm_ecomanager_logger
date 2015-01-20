@@ -22,7 +22,9 @@ rfm_ecomanager_logger creates a new, numerically labelled data directory
 every time it is run.  merge_datasets.py merges these datasets into
 a single dataset directory and also removes insanely large values and the
 phase difference column from snd_card_power_meter data (because that column
-is garbage!)
+is garbage!)  This script also removes the ragged third column from the IAM 
+data (the button-press data) and puts this data into a 
+`channel<i>_button_press.dat` file.
 
 REQUIREMENTS
 ============
@@ -393,7 +395,8 @@ def process_high_freq_line(data):
 
 
 def append_files(input_filename, output_filename, 
-                 line_processing_func=lambda x: x):
+                 line_processing_func=lambda x: x,
+                 move_button_press_data=False):
     """
     Appends input_filename onto the end of output_filename.
     
@@ -404,6 +407,10 @@ def append_files(input_filename, output_filename,
     """
     input_file = open(input_filename, 'r')    
     output_file = open(output_filename, 'a')
+    if move_button_press_data:
+        button_press_filename = os.path.splitext(output_filename)[0]
+        button_press_filename += "_button_press.dat"
+
     while True:
         data = input_file.readline()
         if data and data.strip():
@@ -416,6 +423,13 @@ def append_files(input_filename, output_filename,
                          .format(input_filename, output_filename, data, e))
             else:
                 if data is not None:
+                    if move_button_press_data:
+                        columns = data.strip().split(' ')
+                        if len(columns) == 3:
+                            data = " ".join(columns[:2]) + "\n"
+                            button_press_line = " ".join([columns[0], columns[2]]) + "\n"
+                            with open(button_press_filename, 'a') as button_press_fh:
+                                button_press_fh.write(button_press_line)
                     output_file.write(data)
         else:
             break
@@ -600,13 +614,12 @@ def main():
                      " to end of " + output_filename)
             if not args.dry_run:
                 label = dataset.labels[input_channel]
-                if label in AGGREGATE_LABELS:
-                    threshold = THRESHOLD_FOR_AGGREGATE
-                else:
-                    threshold = THRESHOLD_FOR_IAMS
+                is_iam = label not in AGGREGATE_LABELS
+                threshold = THRESHOLD_FOR_IAMS if is_iam else THRESHOLD_FOR_AGGREGATE
                 line_proc_f = lambda line: remove_values_above(threshold, line)
                 append_files(input_filename, output_filename, 
-                             line_processing_func=line_proc_f)
+                             line_processing_func=line_proc_f,
+                             move_button_press_data=is_iam)
                 
         # Handle metadata
         output_metadata_parser = merge_metadata(output_metadata_parser,
